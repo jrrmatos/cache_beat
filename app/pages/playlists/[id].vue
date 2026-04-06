@@ -72,6 +72,14 @@
           Add Track
         </button>
         <button
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          :disabled="renumbering"
+          @click="renumberFiles"
+        >
+          <i class="pi pi-sort-numeric-up" />
+          Renumber Files
+        </button>
+        <button
           class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
           :disabled="syncingFiles"
           @click="syncFiles"
@@ -300,6 +308,7 @@ interface PlaylistDetail {
 const playlist = ref<PlaylistDetail | null>(null)
 const syncingMetadata = ref(false)
 const syncingFiles = ref(false)
+const renumbering = ref(false)
 const showConfig = ref(false)
 const showAddTrack = ref(false)
 const configForm = ref({
@@ -410,6 +419,20 @@ async function syncMetadata() {
   }
   finally {
     syncingMetadata.value = false
+  }
+}
+
+async function renumberFiles() {
+  renumbering.value = true
+  try {
+    await post(`/api/playlists/${route.params.id}/renumber`)
+    await loadPlaylist()
+  }
+  catch (error) {
+    console.error('Renumber failed:', error)
+  }
+  finally {
+    renumbering.value = false
   }
 }
 
