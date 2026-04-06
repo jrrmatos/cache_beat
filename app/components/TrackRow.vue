@@ -28,6 +28,13 @@
     </div>
     <div class="flex items-center gap-2">
       <span
+        v-if="track.overrideUrl"
+        class="rounded bg-purple-900/50 px-2 py-0.5 text-xs text-purple-300"
+        :title="`Override: ${track.overrideUrl}`"
+      >
+        override
+      </span>
+      <span
         v-if="track.removedFromSource"
         class="rounded bg-amber-900/50 px-2 py-0.5 text-xs text-amber-300"
         title="Removed from YouTube playlist"
@@ -57,6 +64,13 @@
         <i class="pi pi-refresh text-xs" />
       </button>
       <button
+        class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        title="Edit track URL"
+        @click="$emit('edit', track.id)"
+      >
+        <i class="pi pi-pencil text-xs" />
+      </button>
+      <button
         v-if="track.status !== 'downloading'"
         class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
         :title="track.status === 'completed' ? 'Force re-download' : 'Download now'"
@@ -78,6 +92,7 @@ const props = defineProps<{
     thumbnailUrl: string | null
     status: string
     errorMessage: string | null
+    overrideUrl: string | null
     removedFromSource: number
   }
 }>()
@@ -85,6 +100,7 @@ const props = defineProps<{
 defineEmits<{
   retry: [trackId: string]
   download: [trackId: string, force: boolean]
+  edit: [trackId: string]
 }>()
 
 const statusClass = computed(() => {

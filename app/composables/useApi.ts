@@ -11,9 +11,13 @@ export function useApi() {
     return $fetch<T>(url, { method: 'PUT', body })
   }
 
+  async function patch<T>(url: string, body?: Record<string, unknown>): Promise<T> {
+    return $fetch<T>(url, { method: 'PATCH', body })
+  }
+
   async function del<T>(url: string): Promise<T> {
     return $fetch<T>(url, { method: 'DELETE' })
   }
 
-  return { get, post, put, del }
+  return { get, post, put, patch, del }
 }

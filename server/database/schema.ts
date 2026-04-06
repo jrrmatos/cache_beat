@@ -35,6 +35,7 @@ export const tracks = sqliteTable('tracks', {
   filePath: text('file_path'),
   status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed'] }).notNull().default('pending'),
   errorMessage: text('error_message'),
+  overrideUrl: text('override_url'),
   removedFromSource: integer('removed_from_source').notNull().default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),

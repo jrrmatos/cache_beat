@@ -95,12 +95,55 @@
         :track="track"
         @retry="retryTrack"
         @download="downloadTrack"
+        @edit="openEditTrack"
       />
       <div
         v-if="! playlist.tracks.length"
         class="p-8 text-center text-zinc-500"
       >
         No tracks yet. Hit "Sync Metadata" to fetch from YouTube.
+      </div>
+    </div>
+
+    <div
+      v-if="editingTrack"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      @click.self="cancelEdit"
+    >
+      <div class="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6">
+        <h3 class="mb-1 font-semibold">
+          Edit Track URL
+        </h3>
+        <p class="mb-4 truncate text-sm text-zinc-400">
+          {{ editingTrack.title }}
+        </p>
+        <label class="mb-1 block text-sm text-zinc-400">
+          Override URL
+        </label>
+        <input
+          v-model="editOverrideUrl"
+          type="url"
+          placeholder="https://www.youtube.com/watch?v=..."
+          class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+          @keydown.enter="saveOverrideUrl"
+        >
+        <p class="mt-1 text-xs text-zinc-500">
+          Leave empty to use the original YouTube video. Accepts any yt-dlp compatible URL.
+        </p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button
+            class="rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
+            @click="cancelEdit"
+          >
+            Cancel
+          </button>
+          <button
+            class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500"
+            @click="saveOverrideUrl"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -116,7 +159,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
-const { get, post, put, del } = useApi()
+const { get, post, put, patch, del } = useApi()
 
 interface Track {
   id: string
@@ -126,6 +169,7 @@ interface Track {
   thumbnailUrl: string | null
   status: string
   errorMessage: string | null
+  overrideUrl: string | null
   removedFromSource: number
 }
 
@@ -238,6 +282,31 @@ async function confirmDelete() {
   }
   await del(`/api/playlists/${route.params.id}`)
   router.push('/playlists')
+}
+
+const editingTrack = ref<Track | null>(null)
+const editOverrideUrl = ref('')
+
+function openEditTrack(trackId: string) {
+  const track = playlist.value?.tracks.find(item => item.id === trackId)
+  if (! track) {
+    return
+  }
+  editingTrack.value = track
+  editOverrideUrl.value = track.overrideUrl ?? ''
+}
+
+async function saveOverrideUrl() {
+  if (! editingTrack.value) {
+    return
+  }
+  await patch(`/api/tracks/${editingTrack.value.id}`, { overrideUrl: editOverrideUrl.value })
+  editingTrack.value = null
+  await loadPlaylist()
+}
+
+function cancelEdit() {
+  editingTrack.value = null
 }
 
 async function retryTrack(trackId: string) {

@@ -211,6 +211,7 @@ export async function syncPlaylistFiles(
         track.title,
         track.id,
         playlist.audioQuality,
+        track.overrideUrl,
       )
       db.update(tracks)
         .set({ status: 'completed', filePath, errorMessage: null, updatedAt: Date.now() })
@@ -277,6 +278,7 @@ export async function downloadSingleTrack(trackId: string, force = false): Promi
       track.title,
       track.id,
       playlist.audioQuality,
+      track.overrideUrl,
     )
     db.update(tracks)
       .set({ status: 'completed', filePath, errorMessage: null, updatedAt: Date.now() })

@@ -36,6 +36,7 @@ export async function downloadTrack(
   title: string,
   trackId: string,
   audioQuality = '0',
+  overrideUrl?: string | null,
 ): Promise<string> {
   if (! existsSync(outputDir)) {
     mkdirSync(outputDir, { recursive: true })
@@ -44,7 +45,7 @@ export async function downloadTrack(
   const paddedPosition = String(position + 1).padStart(2, '0')
   const sanitizedTitle = sanitizeFilename(title)
   const filename = `${paddedPosition} - ${sanitizedTitle}`
-  const url = `https://www.youtube.com/watch?v=${videoId}`
+  const url = overrideUrl || `https://www.youtube.com/watch?v=${videoId}`
 
   const args = [
     '--extract-audio',

@@ -15,6 +15,13 @@
       "when": 1775479805267,
       "tag": "0001_amazing_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775560000000,
+      "tag": "0002_add_override_url",
+      "breakpoints": true
     }
   ]
 }
