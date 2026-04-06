@@ -78,6 +78,14 @@
       >
         <i class="pi pi-download text-xs" />
       </button>
+      <button
+        v-if="deletable"
+        class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-red-400"
+        title="Remove track"
+        @click="$emit('delete', track.id)"
+      >
+        <i class="pi pi-trash text-xs" />
+      </button>
     </div>
   </div>
 </template>
@@ -95,12 +103,14 @@ const props = defineProps<{
     overrideUrl: string | null
     removedFromSource: number
   }
+  deletable?: boolean
 }>()
 
 defineEmits<{
   retry: [trackId: string]
   download: [trackId: string, force: boolean]
   edit: [trackId: string]
+  delete: [trackId: string]
 }>()
 
 const statusClass = computed(() => {

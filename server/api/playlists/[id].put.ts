@@ -5,7 +5,7 @@ import { db } from '../../database/index'
 
 const bodySchema = z.object({
   title: z.string().min(1).optional(),
-  outputPath: z.string().nullable().optional(),
+  outputFolder: z.string().nullable().optional(),
   syncFrequency: z.enum(['hourly', 'daily', 'weekly', 'manual']).optional(),
   audioQuality: z.string().optional(),
   isActive: z.number().min(0).max(1).optional(),

@@ -43,7 +43,9 @@ interface PlaylistWithCount {
   thumbnailUrl: string | null
   trackCount: number
   isActive: number
+  isCustom: number
   syncFrequency: string
+  outputFolder: string | null
   lastSyncedAt: number | null
 }
 

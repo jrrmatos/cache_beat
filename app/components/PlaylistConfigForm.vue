@@ -1,15 +1,7 @@
 <template>
   <div class="space-y-4">
-    <div>
-      <label class="mb-1 block text-sm text-zinc-400">Output Path</label>
-      <input
-        v-model="form.outputPath"
-        type="text"
-        placeholder="Leave empty for default"
-        class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-      >
-    </div>
-    <div>
+    <FolderSelector v-model="form.outputFolder" />
+    <div v-if="! hideSync">
       <label class="mb-1 block text-sm text-zinc-400">Sync Frequency</label>
       <select
         v-model="form.syncFrequency"
@@ -41,8 +33,12 @@
 </template>
 
 <script setup lang="ts">
+defineProps<{
+  hideSync?: boolean
+}>()
+
 const form = defineModel<{
-  outputPath: string | null
+  outputFolder: string | null
   syncFrequency: string
   audioQuality: string
 }>({ required: true })

@@ -61,6 +61,9 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
   if (! playlist) {
     throw createError({ statusCode: 404, message: 'Playlist not found' })
   }
+  if (playlist.isCustom || ! playlist.youtubeId) {
+    return { added: 0, removed: 0 }
+  }
 
   const youtubeItems = await getAllPlaylistItems(playlist.youtubeId)
   const existingTracks = db.select().from(tracks).where(eq(tracks.playlistId, playlistId)).all()
@@ -147,8 +150,9 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
 
 // --- File Sync ---
 
-function resolveOutputDir(playlist: { outputPath: string | null, title: string }, defaultOutputPath: string): string {
-  return playlist.outputPath || `${defaultOutputPath}/${sanitizePathSegment(playlist.title)}`
+function resolveOutputDir(playlist: { outputFolder: string | null, title: string }, defaultOutputPath: string): string {
+  const folder = playlist.outputFolder || sanitizePathSegment(playlist.title)
+  return `${defaultOutputPath}/${folder}`
 }
 
 export async function syncPlaylistFiles(
@@ -311,7 +315,7 @@ export async function runMetadataSync(): Promise<void> {
       .all()
 
     for (const playlist of activePlaylists) {
-      if (playlist.syncFrequency === 'manual') {
+      if (playlist.isCustom || playlist.syncFrequency === 'manual') {
         continue
       }
       const interval = FREQUENCY_MS[playlist.syncFrequency]
@@ -344,7 +348,7 @@ export async function runFileSync(): Promise<void> {
       .all()
 
     for (const playlist of activePlaylists) {
-      if (playlist.syncFrequency === 'manual') {
+      if (playlist.isCustom || playlist.syncFrequency === 'manual') {
         continue
       }
       const interval = FREQUENCY_MS[playlist.syncFrequency]

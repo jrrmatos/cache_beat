@@ -4,6 +4,34 @@
       Add Playlist
     </h1>
 
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <h2 class="mb-4 text-lg font-semibold">
+        Create Custom Playlist
+      </h2>
+      <div class="space-y-4">
+        <div>
+          <label class="mb-1 block text-sm text-zinc-400">Title</label>
+          <input
+            v-model="customTitle"
+            type="text"
+            placeholder="My Playlist"
+            class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          >
+        </div>
+        <PlaylistConfigForm
+          v-model="customConfigForm"
+          :hide-sync="true"
+        />
+        <button
+          class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          :disabled="! customTitle.trim()"
+          @click="createCustom"
+        >
+          Create Playlist
+        </button>
+      </div>
+    </div>
+
     <div
       v-if="! connected"
       class="rounded-xl border border-amber-800 bg-amber-900/20 p-4 text-sm text-amber-300"
@@ -12,7 +40,7 @@
         YouTube is not connected. Go to <NuxtLink
           to="/settings"
           class="underline"
-        >Settings</NuxtLink> to connect.
+        >Settings</NuxtLink> to connect and import YouTube playlists.
       </p>
     </div>
 
@@ -98,6 +126,7 @@
 </template>
 
 <script setup lang="ts">
+const router = useRouter()
 const { get, post } = useApi()
 
 interface YoutubePlaylist {
@@ -114,10 +143,34 @@ const youtubePlaylists = ref<YoutubePlaylist[]>([])
 const addedIds = ref(new Set<string>())
 const addingPlaylist = ref<YoutubePlaylist | null>(null)
 const configForm = ref({
-  outputPath: null as string | null,
+  outputFolder: null as string | null,
   syncFrequency: 'daily',
   audioQuality: '0',
 })
+
+const customTitle = ref('')
+const customConfigForm = ref({
+  outputFolder: null as string | null,
+  syncFrequency: 'manual',
+  audioQuality: '0',
+})
+
+async function createCustom() {
+  if (! customTitle.value.trim()) {
+    return
+  }
+  try {
+    const data = await post<{ id: string }>('/api/playlists/custom', {
+      title: customTitle.value.trim(),
+      outputFolder: customConfigForm.value.outputFolder,
+      audioQuality: customConfigForm.value.audioQuality,
+    })
+    router.push(`/playlists/${data.id}`)
+  }
+  catch (error) {
+    console.error('Failed to create custom playlist:', error)
+  }
+}
 
 async function checkConnection() {
   try {
@@ -144,8 +197,8 @@ async function loadPlaylists() {
       itemCount: item.contentDetails?.itemCount ?? 0,
     }))
 
-    const existing = await get<{ youtubeId: string }[]>('/api/playlists')
-    addedIds.value = new Set(existing.map(playlist => playlist.youtubeId))
+    const existing = await get<{ youtubeId: string | null }[]>('/api/playlists')
+    addedIds.value = new Set(existing.map(playlist => playlist.youtubeId).filter(Boolean) as string[])
   }
   catch (error) {
     console.error('Failed to load playlists:', error)
@@ -158,7 +211,7 @@ async function loadPlaylists() {
 function startAdd(playlist: YoutubePlaylist) {
   addingPlaylist.value = playlist
   configForm.value = {
-    outputPath: null,
+    outputFolder: null,
     syncFrequency: 'daily',
     audioQuality: '0',
   }

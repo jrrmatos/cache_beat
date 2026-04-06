@@ -128,6 +128,16 @@ export async function searchVideos(query: string, pageToken?: string) {
   return response.data
 }
 
+export async function getVideoDetails(videoId: string) {
+  const auth = await getAuthenticatedClient()
+  const yt = youtubeClient(auth)
+  const response = await yt.videos.list({
+    part: ['snippet', 'contentDetails'],
+    id: [videoId],
+  })
+  return response.data.items?.[0] ?? null
+}
+
 export async function isYoutubeConnected(): Promise<boolean> {
   const refreshToken = await getSetting('youtube_refresh_token')
   return !! refreshToken

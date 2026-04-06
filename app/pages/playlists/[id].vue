@@ -12,9 +12,17 @@
           <i class="pi pi-arrow-left" />
         </button>
         <div>
-          <h1 class="text-2xl font-bold">
-            {{ playlist.title }}
-          </h1>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold">
+              {{ playlist.title }}
+            </h1>
+            <span
+              v-if="playlist.isCustom"
+              class="rounded bg-violet-900/50 px-2 py-0.5 text-xs text-violet-300"
+            >
+              Custom
+            </span>
+          </div>
           <p class="text-sm text-zinc-400">
             {{ playlist.tracks.length }} tracks
           </p>
@@ -29,6 +37,14 @@
           Delete
         </button>
         <button
+          v-if="! playlist.isCustom"
+          class="flex items-center gap-2 rounded-lg border border-amber-800 px-4 py-2 text-sm text-amber-300 transition-colors hover:bg-amber-900/30"
+          @click="convertToCustom"
+        >
+          <i class="pi pi-arrow-right-arrow-left" />
+          Convert to Custom
+        </button>
+        <button
           class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
           @click="showConfig = ! showConfig"
         >
@@ -36,6 +52,7 @@
           Config
         </button>
         <button
+          v-if="! playlist.isCustom"
           class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
           :disabled="syncingMetadata"
           @click="syncMetadata"
@@ -45,6 +62,14 @@
             :class="{ 'animate-spin': syncingMetadata }"
           />
           Sync Metadata
+        </button>
+        <button
+          v-if="playlist.isCustom"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
+          @click="showAddTrack = true"
+        >
+          <i class="pi pi-plus" />
+          Add Track
         </button>
         <button
           class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
@@ -69,7 +94,10 @@
       <h2 class="mb-4 font-semibold">
         Playlist Configuration
       </h2>
-      <PlaylistConfigForm v-model="configForm" />
+      <PlaylistConfigForm
+        v-model="configForm"
+        :hide-sync="playlist.isCustom"
+      />
       <div class="mt-4 flex items-center gap-3">
         <button
           class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500"
@@ -93,15 +121,17 @@
         v-for="track in playlist.tracks"
         :key="track.id"
         :track="track"
+        :deletable="!! playlist.isCustom"
         @retry="retryTrack"
         @download="downloadTrack"
         @edit="openEditTrack"
+        @delete="deleteTrack"
       />
       <div
         v-if="! playlist.tracks.length"
         class="p-8 text-center text-zinc-500"
       >
-        No tracks yet. Hit "Sync Metadata" to fetch from YouTube.
+        {{ playlist.isCustom ? 'No tracks yet. Hit "Add Track" to add some.' : 'No tracks yet. Hit "Sync Metadata" to fetch from YouTube.' }}
       </div>
     </div>
 
@@ -146,6 +176,13 @@
         </div>
       </div>
     </div>
+
+    <AddTrackModal
+      v-if="showAddTrack"
+      :playlist-id="playlist.id"
+      @close="showAddTrack = false"
+      @added="loadPlaylist"
+    />
   </div>
 
   <div
@@ -176,10 +213,11 @@ interface Track {
 interface PlaylistDetail {
   id: string
   title: string
-  outputPath: string | null
+  outputFolder: string | null
   syncFrequency: string
   audioQuality: string
   isActive: number
+  isCustom: number
   tracks: Track[]
 }
 
@@ -187,8 +225,9 @@ const playlist = ref<PlaylistDetail | null>(null)
 const syncingMetadata = ref(false)
 const syncingFiles = ref(false)
 const showConfig = ref(false)
+const showAddTrack = ref(false)
 const configForm = ref({
-  outputPath: null as string | null,
+  outputFolder: null as string | null,
   syncFrequency: 'daily',
   audioQuality: '0',
 })
@@ -227,7 +266,7 @@ async function loadPlaylist() {
   const data = await get<PlaylistDetail>(`/api/playlists/${route.params.id}`)
   playlist.value = data
   configForm.value = {
-    outputPath: data.outputPath,
+    outputFolder: data.outputFolder,
     syncFrequency: data.syncFrequency,
     audioQuality: data.audioQuality,
   }
@@ -282,6 +321,22 @@ async function confirmDelete() {
   }
   await del(`/api/playlists/${route.params.id}`)
   router.push('/playlists')
+}
+
+async function convertToCustom() {
+  if (! confirm('Convert to custom playlist? This will remove the YouTube association and cannot be undone. Sync will be disabled.')) {
+    return
+  }
+  await post(`/api/playlists/${route.params.id}/convert`)
+  await loadPlaylist()
+}
+
+async function deleteTrack(trackId: string) {
+  if (! confirm('Remove this track from the playlist?')) {
+    return
+  }
+  await del(`/api/playlists/${route.params.id}/tracks/${trackId}`)
+  await loadPlaylist()
 }
 
 const editingTrack = ref<Track | null>(null)

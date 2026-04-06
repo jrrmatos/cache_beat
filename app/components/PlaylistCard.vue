@@ -29,11 +29,23 @@
           class="inline-block h-1.5 w-1.5 rounded-full"
           :class="playlist.isActive ? 'bg-emerald-400' : 'bg-zinc-600'"
         />
-        <span>{{ playlist.syncFrequency }}</span>
+        <span
+          v-if="playlist.isCustom"
+          class="rounded bg-violet-900/50 px-1.5 py-0.5 text-violet-300"
+        >
+          Custom
+        </span>
+        <span v-else>{{ playlist.syncFrequency }}</span>
         <span v-if="playlist.lastSyncedAt">
           &middot; synced {{ timeAgo(playlist.lastSyncedAt) }}
         </span>
       </div>
+      <p
+        v-if="playlist.outputFolder"
+        class="truncate text-xs text-zinc-500"
+      >
+        {{ playlist.outputFolder }}
+      </p>
     </div>
   </NuxtLink>
 </template>
@@ -46,7 +58,9 @@ defineProps<{
     thumbnailUrl: string | null
     trackCount: number
     isActive: number
+    isCustom: number
     syncFrequency: string
+    outputFolder: string | null
     lastSyncedAt: number | null
   }
 }>()

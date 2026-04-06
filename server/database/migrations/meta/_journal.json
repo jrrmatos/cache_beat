@@ -22,6 +22,13 @@
       "when": 1775560000000,
       "tag": "0002_add_override_url",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1775484072885,
+      "tag": "0003_striped_multiple_man",
+      "breakpoints": true
     }
   ]
 }
