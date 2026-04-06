@@ -195,7 +195,7 @@ async function loadPlaylists() {
       title: item.snippet?.title ?? 'Unknown',
       thumbnail: item.snippet?.thumbnails?.medium?.url ?? null,
       itemCount: item.contentDetails?.itemCount ?? 0,
-    }))
+    })).sort((left, right) => left.title.localeCompare(right.title))
 
     const existing = await get<{ youtubeId: string | null }[]>('/api/playlists')
     addedIds.value = new Set(existing.map(playlist => playlist.youtubeId).filter(Boolean) as string[])

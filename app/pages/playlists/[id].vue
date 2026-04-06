@@ -122,10 +122,18 @@
         :key="track.id"
         :track="track"
         :deletable="!! playlist.isCustom"
+        :draggable="!! playlist.isCustom"
+        :class="{
+          'opacity-50': dragState.draggingId === track.id,
+          'border-t-2 border-emerald-500': dragState.overId === track.id && dragState.draggingId !== track.id,
+        }"
         @retry="retryTrack"
         @download="downloadTrack"
         @edit="openEditTrack"
         @delete="deleteTrack"
+        @dragstart="onDragStart"
+        @dragover="onDragOver"
+        @dragend="onDragEnd"
       />
       <div
         v-if="! playlist.tracks.length"
@@ -140,26 +148,94 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
       @click.self="cancelEdit"
     >
-      <div class="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6">
+      <div class="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6">
         <h3 class="mb-1 font-semibold">
-          Edit Track URL
+          Override Track URL
         </h3>
         <p class="mb-4 truncate text-sm text-zinc-400">
           {{ editingTrack.title }}
         </p>
-        <label class="mb-1 block text-sm text-zinc-400">
-          Override URL
-        </label>
-        <input
-          v-model="editOverrideUrl"
-          type="url"
-          placeholder="https://www.youtube.com/watch?v=..."
-          class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-          @keydown.enter="saveOverrideUrl"
-        >
-        <p class="mt-1 text-xs text-zinc-500">
-          Leave empty to use the original YouTube video. Accepts any yt-dlp compatible URL.
-        </p>
+
+        <div class="mb-4 flex gap-2 border-b border-zinc-800">
+          <button
+            class="px-4 py-2 text-sm transition-colors"
+            :class="overrideTab === 'url' ? 'border-b-2 border-emerald-500 text-white' : 'text-zinc-400 hover:text-white'"
+            @click="overrideTab = 'url'"
+          >
+            Paste URL
+          </button>
+          <button
+            class="px-4 py-2 text-sm transition-colors"
+            :class="overrideTab === 'search' ? 'border-b-2 border-emerald-500 text-white' : 'text-zinc-400 hover:text-white'"
+            @click="overrideTab = 'search'"
+          >
+            Search YouTube
+          </button>
+        </div>
+
+        <div v-if="overrideTab === 'url'">
+          <input
+            v-model="editOverrideUrl"
+            type="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+            class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+            @keydown.enter="saveOverrideUrl"
+          >
+          <p class="mt-1 text-xs text-zinc-500">
+            Leave empty to use the original YouTube video. Accepts any yt-dlp compatible URL.
+          </p>
+        </div>
+
+        <div v-if="overrideTab === 'search'">
+          <div class="flex gap-2">
+            <input
+              v-model="overrideSearchQuery"
+              type="text"
+              placeholder="Search YouTube..."
+              class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              @keydown.enter="searchOverride"
+            >
+            <button
+              class="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              :disabled="! overrideSearchQuery.trim() || overrideSearching"
+              @click="searchOverride"
+            >
+              {{ overrideSearching ? 'Searching...' : 'Search' }}
+            </button>
+          </div>
+          <div
+            v-if="overrideSearchResults.length"
+            class="mt-3 max-h-64 space-y-2 overflow-y-auto"
+          >
+            <div
+              v-for="result in overrideSearchResults"
+              :key="result.videoId"
+              class="flex items-center gap-3 rounded-lg border border-zinc-800 p-2"
+            >
+              <img
+                v-if="result.thumbnail"
+                :src="result.thumbnail"
+                :alt="result.title"
+                class="h-12 w-16 rounded object-cover"
+              >
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm">
+                  {{ result.title }}
+                </p>
+                <p class="truncate text-xs text-zinc-400">
+                  {{ result.channel }}
+                </p>
+              </div>
+              <button
+                class="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs transition-colors hover:bg-zinc-800"
+                @click="selectOverrideResult(result.videoId)"
+              >
+                Select
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="mt-4 flex justify-end gap-2">
           <button
             class="rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
@@ -232,7 +308,53 @@ const configForm = ref({
   audioQuality: '0',
 })
 const isActive = ref(true)
+const dragState = reactive({ draggingId: null as string | null, overId: null as string | null })
 let pollInterval: ReturnType<typeof setInterval> | null = null
+
+function onDragStart(event: DragEvent, trackId: string) {
+  dragState.draggingId = trackId
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function onDragOver(event: DragEvent, trackId: string) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  dragState.overId = trackId
+}
+
+async function onDragEnd() {
+  if (! playlist.value || ! dragState.draggingId || ! dragState.overId || dragState.draggingId === dragState.overId) {
+    dragState.draggingId = null
+    dragState.overId = null
+    return
+  }
+
+  const tracks = [...playlist.value.tracks]
+  const fromIndex = tracks.findIndex(track => track.id === dragState.draggingId)
+  const toIndex = tracks.findIndex(track => track.id === dragState.overId)
+  if (fromIndex === - 1 || toIndex === - 1) {
+    dragState.draggingId = null
+    dragState.overId = null
+    return
+  }
+
+  const [moved] = tracks.splice(fromIndex, 1)
+  tracks.splice(toIndex, 0, moved)
+
+  // Optimistic update
+  playlist.value.tracks = tracks.map((track, index) => ({ ...track, position: index }))
+  dragState.draggingId = null
+  dragState.overId = null
+
+  await post(`/api/playlists/${route.params.id}/tracks/reorder`, {
+    trackIds: tracks.map(track => track.id),
+  })
+  await loadPlaylist()
+}
 
 function hasActiveDownloads(): boolean {
   if (! playlist.value) {
@@ -341,6 +463,10 @@ async function deleteTrack(trackId: string) {
 
 const editingTrack = ref<Track | null>(null)
 const editOverrideUrl = ref('')
+const overrideTab = ref<'url' | 'search'>('url')
+const overrideSearchQuery = ref('')
+const overrideSearching = ref(false)
+const overrideSearchResults = ref<{ videoId: string, title: string, channel: string, thumbnail: string | null }[]>([])
 
 function openEditTrack(trackId: string) {
   const track = playlist.value?.tracks.find(item => item.id === trackId)
@@ -349,6 +475,38 @@ function openEditTrack(trackId: string) {
   }
   editingTrack.value = track
   editOverrideUrl.value = track.overrideUrl ?? ''
+  overrideTab.value = 'url'
+  overrideSearchQuery.value = ''
+  overrideSearchResults.value = []
+}
+
+async function searchOverride() {
+  if (! overrideSearchQuery.value.trim()) {
+    return
+  }
+  overrideSearching.value = true
+  try {
+    const data = await get<{ items?: { id?: { videoId?: string }, snippet?: { title?: string, channelTitle?: string, thumbnails?: { medium?: { url?: string } } } }[] }>(`/api/youtube/search?q=${encodeURIComponent(overrideSearchQuery.value)}`)
+    overrideSearchResults.value = (data.items ?? [])
+      .filter(item => !! item.id?.videoId)
+      .map(item => ({
+        videoId: item.id?.videoId ?? '',
+        title: item.snippet?.title ?? 'Unknown',
+        channel: item.snippet?.channelTitle ?? '',
+        thumbnail: item.snippet?.thumbnails?.medium?.url ?? null,
+      }))
+  }
+  catch (error) {
+    console.error('Override search failed:', error)
+  }
+  finally {
+    overrideSearching.value = false
+  }
+}
+
+function selectOverrideResult(videoId: string) {
+  editOverrideUrl.value = `https://www.youtube.com/watch?v=${videoId}`
+  overrideTab.value = 'url'
 }
 
 async function saveOverrideUrl() {
