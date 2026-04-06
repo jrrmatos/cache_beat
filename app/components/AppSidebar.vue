@@ -89,7 +89,7 @@
     <div class="mt-auto border-t border-zinc-800 px-4 py-3">
       <SyncStatusBadge />
       <p class="mt-2 text-xs text-zinc-600">
-        v0.2.1
+        v0.2.2
       </p>
     </div>
   </aside>

@@ -77,6 +77,22 @@
       </button>
     </div>
 
+    <div class="rounded-xl border border-red-900/50 bg-zinc-900 p-6">
+      <h2 class="mb-2 text-lg font-semibold text-red-400">
+        Danger Zone
+      </h2>
+      <p class="mb-4 text-sm text-zinc-400">
+        Force sync deletes all existing track records and re-scans every folder from disk. Playlist associations are preserved.
+      </p>
+      <button
+        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-red-500 disabled:opacity-50"
+        :disabled="forceSyncing"
+        @click="confirmForceSync"
+      >
+        {{ forceSyncing ? 'Syncing...' : 'Force Sync All Folders' }}
+      </button>
+    </div>
+
     <div
       v-if="message"
       class="rounded-lg bg-emerald-900/30 p-3 text-sm text-emerald-300"
@@ -87,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-const { get, put } = useApi()
+const { get, post, put } = useApi()
 const route = useRoute()
 
 const form = ref({
@@ -97,6 +113,7 @@ const form = ref({
 })
 const youtubeConnected = ref(false)
 const message = ref('')
+const forceSyncing = ref(false)
 
 async function loadSettings() {
   try {
@@ -136,6 +153,29 @@ async function saveDefaults() {
   setTimeout(() => {
     message.value = ''
   }, 3000)
+}
+
+async function confirmForceSync() {
+  if (! confirm('This will delete ALL track records and re-scan from disk. Playlist links are preserved. Continue?')) {
+    return
+  }
+  forceSyncing.value = true
+  try {
+    const result = await post<{ foldersAdded: number, tracksAdded: number, foldersRemoved: number }>('/api/folders/sync?force=true', {})
+    message.value = `Force sync complete: ${result.foldersAdded} folders added, ${result.tracksAdded} tracks added, ${result.foldersRemoved} folders removed`
+    setTimeout(() => {
+      message.value = ''
+    }, 5000)
+  }
+  catch {
+    message.value = 'Force sync failed'
+    setTimeout(() => {
+      message.value = ''
+    }, 3000)
+  }
+  finally {
+    forceSyncing.value = false
+  }
 }
 
 async function connectYoutube() {

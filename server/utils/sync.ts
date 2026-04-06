@@ -644,3 +644,11 @@ export async function syncFoldersFromDisk(): Promise<{ foldersAdded: number, tra
 
   return { foldersAdded: stats.foldersAdded, tracksAdded: stats.tracksAdded, foldersRemoved }
 }
+
+export async function forceSyncFoldersFromDisk(): Promise<{ foldersAdded: number, tracksAdded: number, foldersRemoved: number }> {
+  // Delete all tracks first (but preserve folder+playlist structure)
+  db.delete(tracks).run()
+
+  // Then run normal sync to re-discover everything from disk
+  return await syncFoldersFromDisk()
+}
