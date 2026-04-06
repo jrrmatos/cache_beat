@@ -75,6 +75,12 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
   const existingByYoutubeId = new Map(
     existingTracks.filter(track => track.youtubeId).map(track => [track.youtubeId, track]),
   )
+  // Build title map for scanned tracks (youtubeId is null) to match against YouTube items
+  const scannedByTitle = new Map(
+    existingTracks
+      .filter(track => ! track.youtubeId)
+      .map(track => [sanitizeFilename(track.title).toLowerCase(), track]),
+  )
   const now = Date.now()
 
   let added = 0
@@ -120,19 +126,40 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
       }
     }
     else {
-      db.insert(tracks).values({
-        id: crypto.randomUUID(),
-        folderId: folder.id,
-        youtubeId: videoId,
-        title: item.snippet?.title ?? 'Unknown',
-        artist: item.snippet?.videoOwnerChannelTitle ?? null,
-        position: index,
-        thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
-        status: 'pending',
-        removedFromSource: 0,
-        createdAt: now,
-        updatedAt: now,
-      }).run()
+      const ytTitle = item.snippet?.title ?? 'Unknown'
+      const scannedMatch = scannedByTitle.get(sanitizeFilename(ytTitle).toLowerCase())
+
+      if (scannedMatch) {
+        // Upgrade scanned track with YouTube metadata
+        db.update(tracks)
+          .set({
+            youtubeId: videoId,
+            title: ytTitle,
+            artist: item.snippet?.videoOwnerChannelTitle ?? scannedMatch.artist,
+            thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
+            position: index,
+            status: scannedMatch.filePath && existsSync(scannedMatch.filePath) ? 'completed' : 'pending',
+            updatedAt: now,
+          })
+          .where(eq(tracks.id, scannedMatch.id))
+          .run()
+        scannedByTitle.delete(sanitizeFilename(ytTitle).toLowerCase())
+      }
+      else {
+        db.insert(tracks).values({
+          id: crypto.randomUUID(),
+          folderId: folder.id,
+          youtubeId: videoId,
+          title: ytTitle,
+          artist: item.snippet?.videoOwnerChannelTitle ?? null,
+          position: index,
+          thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
+          status: 'pending',
+          removedFromSource: 0,
+          createdAt: now,
+          updatedAt: now,
+        }).run()
+      }
       added ++
     }
   }

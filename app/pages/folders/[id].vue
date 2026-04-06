@@ -861,6 +861,7 @@ async function loadYoutubePlaylists() {
         thumbnail: item.snippet?.thumbnails?.medium?.url ?? null,
         itemCount: item.contentDetails?.itemCount ?? 0,
       }))
+      .sort((left, right) => left.title.localeCompare(right.title))
   }
   catch (error) {
     console.error('Failed to load YouTube playlists:', error)

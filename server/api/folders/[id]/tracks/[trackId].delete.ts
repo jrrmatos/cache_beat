@@ -1,3 +1,4 @@
+import { existsSync, unlinkSync } from 'node:fs'
 import { eq, and } from 'drizzle-orm'
 import { folders, tracks } from '../../../../database/schema'
 import { db } from '../../../../database/index'
@@ -19,6 +20,10 @@ export default defineEventHandler(async (event) => {
     .get()
   if (! track) {
     throw createError({ statusCode: 404, message: 'Track not found' })
+  }
+
+  if (track.filePath && existsSync(track.filePath)) {
+    unlinkSync(track.filePath)
   }
 
   db.delete(tracks).where(eq(tracks.id, trackId)).run()
