@@ -1,7 +1,13 @@
 import { google, type youtube_v3 } from 'googleapis'
 import { getSetting, setSetting } from './settings'
 
-const REDIRECT_URI = 'http://localhost:3000/api/auth/youtube/callback'
+function getRedirectUri(): string {
+  const uri = process.env.YOUTUBE_REDIRECT_URI
+  if (! uri) {
+    throw createError({ statusCode: 500, message: 'YOUTUBE_REDIRECT_URI env var is required' })
+  }
+  return uri
+}
 
 async function getOAuth2Client() {
   const clientId = await getSetting('youtube_client_id')
@@ -9,7 +15,7 @@ async function getOAuth2Client() {
   if (! clientId || ! clientSecret) {
     throw createError({ statusCode: 400, message: 'YouTube OAuth credentials not configured' })
   }
-  return new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI)
+  return new google.auth.OAuth2(clientId, clientSecret, getRedirectUri())
 }
 
 async function getAuthenticatedClient() {
