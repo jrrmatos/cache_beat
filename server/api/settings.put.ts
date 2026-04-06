@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 import { deleteSetting, setSetting } from '../utils/settings'
+import { syncFoldersFromDisk } from '../utils/sync'
 
 const bodySchema = z.object({
   youtube_client_id: z.string().optional(),
@@ -20,6 +21,10 @@ export default defineEventHandler(async (event) => {
     else {
       await setSetting(key, value)
     }
+  }
+
+  if (body.default_output_path && body.default_output_path !== '') {
+    await syncFoldersFromDisk()
   }
 
   return { ok: true }

@@ -24,13 +24,26 @@
     <div class="mt-4 border-t border-zinc-800 px-3 pt-3">
       <div class="mb-2 flex items-center justify-between px-2">
         <span class="text-xs font-medium uppercase tracking-wider text-zinc-500">Folders</span>
-        <button
-          class="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-          title="New folder"
-          @click="showNewFolder = true"
-        >
-          <i class="pi pi-plus text-xs" />
-        </button>
+        <div class="flex gap-1">
+          <button
+            class="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            title="Sync folders from disk"
+            :disabled="syncing"
+            @click="syncFolders"
+          >
+            <i
+              class="pi pi-sync text-xs"
+              :class="{ 'animate-spin': syncing }"
+            />
+          </button>
+          <button
+            class="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            title="New folder"
+            @click="showNewFolder = true"
+          >
+            <i class="pi pi-plus text-xs" />
+          </button>
+        </div>
       </div>
 
       <div
@@ -113,6 +126,7 @@ const links = [
 const folderTree = ref<FolderNode[]>([])
 const expandedFolders = ref(new Set<string>())
 const showNewFolder = ref(false)
+const syncing = ref(false)
 const newFolderName = ref('')
 const newFolderInput = ref<HTMLInputElement | null>(null)
 
@@ -141,6 +155,17 @@ function toggleFolder(id: string) {
 function navigateToFolder(id: string) {
   router.push(`/folders/${id}`)
   emit('close')
+}
+
+async function syncFolders() {
+  syncing.value = true
+  try {
+    await post('/api/folders/sync', {})
+    await loadFolderTree()
+  }
+  finally {
+    syncing.value = false
+  }
 }
 
 async function createFolder() {

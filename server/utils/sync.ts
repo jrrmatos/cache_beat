@@ -1,11 +1,12 @@
-import { renameSync, existsSync, readdirSync } from 'node:fs'
+import { renameSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, basename, resolve } from 'node:path'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { playlists, tracks, folders } from '../database/schema'
 import { db } from '../database/index'
 import { getAllPlaylistItems } from './youtube'
 import { downloadTrack } from './downloader'
 import { resolveFolderPath, getFolderPlaylist, getEffectiveAudioQuality } from './folders'
+import { getSetting } from './settings'
 
 function sanitizeFilename(name: string): string {
   return name
@@ -500,4 +501,145 @@ export async function runFileSync(): Promise<void> {
   finally {
     fileSyncRunning = false
   }
+}
+
+// --- Recursive Folder Sync from Disk ---
+
+function scanFolderForTracks(folderId: string, fsPath: string): number {
+  const files = readdirSync(fsPath).filter(file => file.toLowerCase().endsWith('.mp3'))
+  const existingTracks = db.select().from(tracks).where(eq(tracks.folderId, folderId)).all()
+  const existingFilePaths = new Set(existingTracks.map(track => track.filePath))
+  let maxPosition = existingTracks.reduce((max, track) => Math.max(max, track.position), - 1)
+  const now = Date.now()
+  let added = 0
+
+  for (const file of files) {
+    const fullPath = resolve(fsPath, file)
+    if (existingFilePaths.has(fullPath)) {
+      continue
+    }
+
+    const title = stripNumberPrefix(file.replace(/\.mp3$/i, ''))
+    maxPosition ++
+
+    db.insert(tracks).values({
+      id: crypto.randomUUID(),
+      folderId,
+      youtubeId: null,
+      title,
+      artist: null,
+      durationSeconds: null,
+      position: maxPosition,
+      thumbnailUrl: null,
+      filePath: fullPath,
+      status: 'completed',
+      removedFromSource: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).run()
+    added ++
+  }
+
+  return added
+}
+
+function syncRecursive(
+  fsPath: string,
+  parentId: string | null,
+  visited: Set<string>,
+  stats: { foldersAdded: number, tracksAdded: number },
+) {
+  let entries: string[]
+  try {
+    entries = readdirSync(fsPath)
+  }
+  catch {
+    return
+  }
+
+  const subdirs = entries.filter((entry) => {
+    try {
+      return statSync(resolve(fsPath, entry)).isDirectory()
+    }
+    catch {
+      return false
+    }
+  })
+
+  for (const dirName of subdirs) {
+    const condition = parentId
+      ? and(eq(folders.name, dirName), eq(folders.parentId, parentId))
+      : and(eq(folders.name, dirName), isNull(folders.parentId))
+
+    let folder = db.select().from(folders).where(condition).get()
+    const now = Date.now()
+
+    if (! folder) {
+      const id = crypto.randomUUID()
+      db.insert(folders).values({
+        id,
+        name: dirName,
+        parentId,
+        createdAt: now,
+        updatedAt: now,
+      }).run()
+      folder = { id, name: dirName, parentId, playlistId: null, createdAt: now, updatedAt: now }
+      stats.foldersAdded ++
+    }
+
+    visited.add(folder.id)
+    stats.tracksAdded += scanFolderForTracks(folder.id, resolve(fsPath, dirName))
+    syncRecursive(resolve(fsPath, dirName), folder.id, visited, stats)
+  }
+}
+
+export async function syncFoldersFromDisk(): Promise<{ foldersAdded: number, tracksAdded: number, foldersRemoved: number }> {
+  const defaultPath = await getSetting('default_output_path')
+  if (! defaultPath || ! existsSync(defaultPath)) {
+    return { foldersAdded: 0, tracksAdded: 0, foldersRemoved: 0 }
+  }
+
+  const visited = new Set<string>()
+  const stats = { foldersAdded: 0, tracksAdded: 0 }
+
+  // Scan root-level .mp3 files into a folder named after the root dir
+  const rootMp3s = readdirSync(defaultPath).filter(file => file.toLowerCase().endsWith('.mp3'))
+  if (rootMp3s.length > 0) {
+    const rootName = basename(defaultPath)
+    const rootCondition = and(eq(folders.name, rootName), isNull(folders.parentId))
+    let rootFolder = db.select().from(folders).where(rootCondition).get()
+    const now = Date.now()
+
+    if (! rootFolder) {
+      const id = crypto.randomUUID()
+      db.insert(folders).values({
+        id,
+        name: rootName,
+        parentId: null,
+        createdAt: now,
+        updatedAt: now,
+      }).run()
+      rootFolder = { id, name: rootName, parentId: null, playlistId: null, createdAt: now, updatedAt: now }
+      stats.foldersAdded ++
+    }
+
+    visited.add(rootFolder.id)
+    stats.tracksAdded += scanFolderForTracks(rootFolder.id, defaultPath)
+  }
+
+  // Recursively sync subdirectories
+  syncRecursive(defaultPath, null, visited, stats)
+
+  // Cleanup: remove DB folders not found on disk, unless they have a playlist
+  const allFolders = db.select({ id: folders.id, playlistId: folders.playlistId }).from(folders).all()
+  let foldersRemoved = 0
+
+  for (const folder of allFolders) {
+    if (! visited.has(folder.id) && ! folder.playlistId) {
+      db.delete(folders).where(eq(folders.id, folder.id)).run()
+      foldersRemoved ++
+    }
+  }
+
+  return { foldersAdded: stats.foldersAdded, tracksAdded: stats.tracksAdded, foldersRemoved }
 }
