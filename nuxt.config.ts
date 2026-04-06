@@ -10,6 +10,17 @@ export default defineNuxtConfig({
     head: {
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no',
+      title: 'Cache Beat',
+      meta: [
+        { name: 'theme-color', content: '#059669' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+      ],
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'manifest', href: '/manifest.json' },
+        { rel: 'apple-touch-icon', href: '/icons/icon-192.svg' },
+      ],
     },
   },
   css: ['primeicons/primeicons.css'],

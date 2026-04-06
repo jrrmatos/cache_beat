@@ -5,7 +5,7 @@
   >
     <div class="flex items-center gap-2 px-4 py-5">
       <i class="pi pi-headphones text-xl text-emerald-400" />
-      <span class="text-lg font-bold tracking-tight">cache_beat</span>
+      <span class="text-lg font-bold tracking-tight">Cache Beat</span>
     </div>
     <nav class="flex flex-1 flex-col gap-1 px-3">
       <NuxtLink
@@ -22,6 +22,9 @@
     </nav>
     <div class="border-t border-zinc-800 px-4 py-3">
       <SyncStatusBadge />
+      <p class="mt-2 text-xs text-zinc-600">
+        v0.1.0
+      </p>
     </div>
   </aside>
 </template>

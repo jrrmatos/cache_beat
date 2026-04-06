@@ -17,7 +17,7 @@
         >
           <i class="pi pi-bars text-lg" />
         </button>
-        <span class="font-bold tracking-tight">cache_beat</span>
+        <span class="font-bold tracking-tight">Cache Beat</span>
       </header>
       <main class="flex-1 overflow-y-auto p-4 md:p-6">
         <slot />
