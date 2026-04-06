@@ -125,24 +125,36 @@
     </div>
 
     <div class="rounded-xl border border-zinc-800">
-      <TrackRow
-        v-for="track in playlist.tracks"
-        :key="track.id"
-        :track="track"
-        :deletable="!! playlist.isCustom"
-        :draggable="!! playlist.isCustom"
-        :class="{
-          'opacity-50': dragState.draggingId === track.id,
-          'border-t-2 border-emerald-500': dragState.overId === track.id && dragState.draggingId !== track.id,
-        }"
-        @retry="retryTrack"
-        @download="downloadTrack"
-        @edit="openEditTrack"
-        @delete="deleteTrack"
-        @dragstart="onDragStart"
-        @dragover="onDragOver"
-        @dragend="onDragEnd"
-      />
+      <draggable
+        v-if="playlist.isCustom"
+        v-model="playlist.tracks"
+        item-key="id"
+        handle=".drag-handle"
+        :animation="200"
+        @end="onDragEnd"
+      >
+        <template #item="{ element: track }">
+          <TrackRow
+            :track="track"
+            :deletable="true"
+            :draggable="true"
+            @retry="retryTrack"
+            @download="downloadTrack"
+            @edit="openEditTrack"
+            @delete="deleteTrack"
+          />
+        </template>
+      </draggable>
+      <template v-else>
+        <TrackRow
+          v-for="track in playlist.tracks"
+          :key="track.id"
+          :track="track"
+          @retry="retryTrack"
+          @download="downloadTrack"
+          @edit="openEditTrack"
+        />
+      </template>
       <div
         v-if="! playlist.tracks.length"
         class="p-8 text-center text-zinc-500"
@@ -278,6 +290,8 @@
 </template>
 
 <script setup lang="ts">
+import draggable from 'vuedraggable'
+
 const route = useRoute()
 const router = useRouter()
 const { get, post, put, patch, del } = useApi()
@@ -317,50 +331,16 @@ const configForm = ref({
   audioQuality: '0',
 })
 const isActive = ref(true)
-const dragState = reactive({ draggingId: null as string | null, overId: null as string | null })
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
-function onDragStart(event: DragEvent, trackId: string) {
-  dragState.draggingId = trackId
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-  }
-}
-
-function onDragOver(event: DragEvent, trackId: string) {
-  event.preventDefault()
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move'
-  }
-  dragState.overId = trackId
-}
-
 async function onDragEnd() {
-  if (! playlist.value || ! dragState.draggingId || ! dragState.overId || dragState.draggingId === dragState.overId) {
-    dragState.draggingId = null
-    dragState.overId = null
+  if (! playlist.value) {
     return
   }
-
-  const tracks = [...playlist.value.tracks]
-  const fromIndex = tracks.findIndex(track => track.id === dragState.draggingId)
-  const toIndex = tracks.findIndex(track => track.id === dragState.overId)
-  if (fromIndex === - 1 || toIndex === - 1) {
-    dragState.draggingId = null
-    dragState.overId = null
-    return
-  }
-
-  const [moved] = tracks.splice(fromIndex, 1)
-  tracks.splice(toIndex, 0, moved)
-
-  // Optimistic update
-  playlist.value.tracks = tracks.map((track, index) => ({ ...track, position: index }))
-  dragState.draggingId = null
-  dragState.overId = null
-
+  // positions already updated by v-model, persist to server
+  playlist.value.tracks = playlist.value.tracks.map((track, index) => ({ ...track, position: index }))
   await post(`/api/playlists/${route.params.id}/tracks/reorder`, {
-    trackIds: tracks.map(track => track.id),
+    trackIds: playlist.value.tracks.map(track => track.id),
   })
   await loadPlaylist()
 }

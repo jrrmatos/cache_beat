@@ -1,15 +1,8 @@
 <template>
-  <div
-    class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-zinc-800/50 sm:gap-3 sm:px-3"
-    :class="{ 'cursor-grab active:cursor-grabbing': draggable }"
-    :draggable="draggable"
-    @dragstart="$emit('dragstart', $event, track.id)"
-    @dragover="$emit('dragover', $event, track.id)"
-    @dragend="$emit('dragend', $event)"
-  >
+  <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-zinc-800/50 sm:gap-3 sm:px-3">
     <i
       v-if="draggable"
-      class="pi pi-bars w-4 shrink-0 text-xs text-zinc-600"
+      class="drag-handle pi pi-bars w-4 shrink-0 cursor-grab text-xs text-zinc-600 active:cursor-grabbing"
     />
     <span class="w-6 shrink-0 text-right text-xs text-zinc-500 sm:w-8 sm:text-sm">
       {{ String(track.position + 1).padStart(2, '0') }}
@@ -125,9 +118,6 @@ defineEmits<{
   download: [trackId: string, force: boolean]
   edit: [trackId: string]
   delete: [trackId: string]
-  dragstart: [event: DragEvent, trackId: string]
-  dragover: [event: DragEvent, trackId: string]
-  dragend: [event: DragEvent]
 }>()
 
 const statusClass = computed(() => {
