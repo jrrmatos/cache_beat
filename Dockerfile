@@ -28,6 +28,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY --from=build /app/.output .output
+COPY --from=build /app/server/database/migrations server/database/migrations
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
