@@ -56,6 +56,14 @@
       >
         <i class="pi pi-refresh text-xs" />
       </button>
+      <button
+        v-if="track.status !== 'downloading'"
+        class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        :title="track.status === 'completed' ? 'Force re-download' : 'Download now'"
+        @click="$emit('download', track.id, track.status === 'completed')"
+      >
+        <i class="pi pi-download text-xs" />
+      </button>
     </div>
   </div>
 </template>
@@ -76,6 +84,7 @@ const props = defineProps<{
 
 defineEmits<{
   retry: [trackId: string]
+  download: [trackId: string, force: boolean]
 }>()
 
 const statusClass = computed(() => {

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { tracks } from '../../../database/schema'
 import { db } from '../../../database/index'
+import { downloadSingleTrack } from '../../../utils/sync'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -16,10 +17,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Only failed tracks can be retried' })
   }
 
-  db.update(tracks)
-    .set({ status: 'pending', errorMessage: null, updatedAt: Date.now() })
-    .where(eq(tracks.id, id))
-    .run()
+  downloadSingleTrack(id, true).catch((error) => {
+    console.error(`[download] retry track ${id} failed:`, error)
+  })
 
   return { ok: true }
 })

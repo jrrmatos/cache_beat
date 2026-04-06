@@ -18,6 +18,7 @@ export const playlists = sqliteTable('playlists', {
   audioQuality: text('audio_quality').notNull().default('0'),
   isActive: integer('is_active').notNull().default(1),
   lastSyncedAt: integer('last_synced_at'),
+  lastDownloadedAt: integer('last_downloaded_at'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })

@@ -36,15 +36,26 @@
           Config
         </button>
         <button
-          class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
-          :disabled="syncing"
-          @click="syncPlaylist"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          :disabled="syncingMetadata"
+          @click="syncMetadata"
         >
           <i
             class="pi pi-sync"
-            :class="{ 'animate-spin': syncing }"
+            :class="{ 'animate-spin': syncingMetadata }"
           />
-          {{ syncing ? 'Syncing...' : 'Sync Now' }}
+          Sync Metadata
+        </button>
+        <button
+          class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          :disabled="syncingFiles"
+          @click="syncFiles"
+        >
+          <i
+            class="pi pi-download"
+            :class="{ 'animate-pulse': syncingFiles }"
+          />
+          {{ syncingFiles ? 'Downloading...' : 'Download Files' }}
         </button>
       </div>
     </div>
@@ -83,12 +94,13 @@
         :key="track.id"
         :track="track"
         @retry="retryTrack"
+        @download="downloadTrack"
       />
       <div
         v-if="! playlist.tracks.length"
         class="p-8 text-center text-zinc-500"
       >
-        No tracks yet. Hit "Sync Now" to fetch from YouTube.
+        No tracks yet. Hit "Sync Metadata" to fetch from YouTube.
       </div>
     </div>
   </div>
@@ -113,6 +125,7 @@ interface Track {
   artist: string | null
   thumbnailUrl: string | null
   status: string
+  errorMessage: string | null
   removedFromSource: number
 }
 
@@ -127,7 +140,8 @@ interface PlaylistDetail {
 }
 
 const playlist = ref<PlaylistDetail | null>(null)
-const syncing = ref(false)
+const syncingMetadata = ref(false)
+const syncingFiles = ref(false)
 const showConfig = ref(false)
 const configForm = ref({
   outputPath: null as string | null,
@@ -135,6 +149,35 @@ const configForm = ref({
   audioQuality: '0',
 })
 const isActive = ref(true)
+let pollInterval: ReturnType<typeof setInterval> | null = null
+
+function hasActiveDownloads(): boolean {
+  if (! playlist.value) {
+    return false
+  }
+  return playlist.value.tracks.some(track =>
+    track.status === 'downloading' || (track.status === 'pending' && syncingFiles.value),
+  )
+}
+
+function startPolling() {
+  if (pollInterval) {
+    return
+  }
+  pollInterval = setInterval(async () => {
+    await loadPlaylist()
+    if (! hasActiveDownloads()) {
+      stopPolling()
+    }
+  }, 2000)
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
 
 async function loadPlaylist() {
   const data = await get<PlaylistDetail>(`/api/playlists/${route.params.id}`)
@@ -145,19 +188,38 @@ async function loadPlaylist() {
     audioQuality: data.audioQuality,
   }
   isActive.value = !! data.isActive
+
+  if (data.tracks.some(track => track.status === 'downloading')) {
+    startPolling()
+  }
 }
 
-async function syncPlaylist() {
-  syncing.value = true
+async function syncMetadata() {
+  syncingMetadata.value = true
   try {
-    await post(`/api/playlists/${route.params.id}/sync`)
+    await post(`/api/playlists/${route.params.id}/sync?type=metadata`)
     await loadPlaylist()
   }
   catch (error) {
-    console.error('Sync failed:', error)
+    console.error('Metadata sync failed:', error)
   }
   finally {
-    syncing.value = false
+    syncingMetadata.value = false
+  }
+}
+
+async function syncFiles() {
+  syncingFiles.value = true
+  try {
+    await post(`/api/playlists/${route.params.id}/sync?type=files`)
+    await loadPlaylist()
+    startPolling()
+  }
+  catch (error) {
+    console.error('File sync failed:', error)
+  }
+  finally {
+    syncingFiles.value = false
   }
 }
 
@@ -181,7 +243,16 @@ async function confirmDelete() {
 async function retryTrack(trackId: string) {
   await post(`/api/tracks/${trackId}/retry`)
   await loadPlaylist()
+  startPolling()
+}
+
+async function downloadTrack(trackId: string, force: boolean) {
+  await post(`/api/tracks/${trackId}/download?force=${force}`)
+  await loadPlaylist()
+  startPolling()
 }
 
 onMounted(loadPlaylist)
+
+onUnmounted(stopPolling)
 </script>

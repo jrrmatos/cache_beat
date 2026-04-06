@@ -1,12 +1,12 @@
-import { runFullSync } from '../utils/sync'
+import { runMetadataSync } from '../utils/sync'
 
 export default defineTask({
   meta: {
     name: 'sync:playlists',
-    description: 'Sync all active playlists and download pending tracks',
+    description: 'Sync playlist metadata from YouTube',
   },
   async run() {
-    await runFullSync()
+    await runMetadataSync()
     return { result: 'ok' }
   },
 })

@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { eq } from 'drizzle-orm'
 import { playlists } from '../../database/schema'
 import { db } from '../../database/index'
+import { syncPlaylistMetadata } from '../../utils/sync'
 
 const bodySchema = z.object({
   youtubeId: z.string().min(1),
@@ -29,6 +30,10 @@ export default defineEventHandler(async (event) => {
     createdAt: now,
     updatedAt: now,
   }).run()
+
+  syncPlaylistMetadata(id).catch((error) => {
+    console.error(`[sync] initial metadata sync failed for ${body.title}:`, error)
+  })
 
   return db.select().from(playlists).where(eq(playlists.id, id)).get()
 })

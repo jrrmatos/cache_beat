@@ -24,7 +24,7 @@ export default defineNuxtConfig({
     serverAssets: [
     ],
     scheduledTasks: {
-      '*/15 * * * *': ['sync:playlists'],
+      '*/15 * * * *': ['sync:playlists', 'sync:downloads'],
     },
   },
   vite: {
