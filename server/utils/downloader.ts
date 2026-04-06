@@ -51,6 +51,7 @@ export async function downloadTrack(
     '--extract-audio',
     '--audio-format', 'mp3',
     '--audio-quality', audioQuality,
+    '--embed-thumbnail',
     '--output', `${outputDir}/${filename}.%(ext)s`,
     '--no-playlist',
     '--newline',

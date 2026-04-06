@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-4">
-    <FolderSelector v-model="form.outputFolder" />
     <div v-if="! hideSync">
       <label class="mb-1 block text-sm text-zinc-400">Sync Frequency</label>
       <select
@@ -38,7 +37,6 @@ defineProps<{
 }>()
 
 const form = defineModel<{
-  outputFolder: string | null
   syncFrequency: string
   audioQuality: string
 }>({ required: true })

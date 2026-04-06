@@ -1,6 +1,6 @@
 <template>
   <NuxtLink
-    :to="`/playlists/${playlist.id}`"
+    :to="playlist.folderId ? `/folders/${playlist.folderId}` : `/playlists/${playlist.id}`"
     class="flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700"
   >
     <img
@@ -40,12 +40,6 @@
           &middot; synced {{ timeAgo(playlist.lastSyncedAt) }}
         </span>
       </div>
-      <p
-        v-if="playlist.outputFolder"
-        class="truncate text-xs text-zinc-500"
-      >
-        {{ playlist.outputFolder }}
-      </p>
     </div>
   </NuxtLink>
 </template>
@@ -54,13 +48,13 @@
 defineProps<{
   playlist: {
     id: string
+    folderId: string | null
     title: string
     thumbnailUrl: string | null
     trackCount: number
     isActive: number
     isCustom: number
     syncFrequency: string
-    outputFolder: string | null
     lastSyncedAt: number | null
   }
 }>()

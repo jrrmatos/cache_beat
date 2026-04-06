@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  playlistId: string
+  folderId: string
 }>()
 
 const emit = defineEmits<{
@@ -152,7 +152,7 @@ async function addByUrl() {
   adding.value = true
   errorMessage.value = ''
   try {
-    await post(`/api/playlists/${props.playlistId}/tracks`, { url })
+    await post(`/api/folders/${props.folderId}/tracks`, { url })
     urlInput.value = ''
     emit('added')
   }
@@ -168,7 +168,7 @@ async function addByVideoId(videoId: string) {
   adding.value = true
   errorMessage.value = ''
   try {
-    await post(`/api/playlists/${props.playlistId}/tracks`, { youtubeId: videoId })
+    await post(`/api/folders/${props.folderId}/tracks`, { youtubeId: videoId })
     addedIds.value.add(videoId)
     emit('added')
   }

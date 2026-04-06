@@ -1,9 +1,103 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "dba1f28b-74bc-4d34-a41b-c8f493e253ff",
+  "id": "ce931765-f98f-4351-86a3-c1134b3d26b5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "folders": {
+      "name": "folders",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "playlist_id": {
+          "name": "playlist_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "folders_playlist_id_unique": {
+          "name": "folders_playlist_id_unique",
+          "columns": [
+            "playlist_id"
+          ],
+          "isUnique": true
+        },
+        "folders_parent_id_idx": {
+          "name": "folders_parent_id_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "folders_parent_id_folders_id_fk": {
+          "name": "folders_parent_id_folders_id_fk",
+          "tableFrom": "folders",
+          "tableTo": "folders",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "folders_playlist_id_playlists_id_fk": {
+          "name": "folders_playlist_id_playlists_id_fk",
+          "tableFrom": "folders",
+          "tableTo": "playlists",
+          "columnsFrom": [
+            "playlist_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "playlists": {
       "name": "playlists",
       "columns": {
@@ -30,13 +124,6 @@
         },
         "thumbnail_url": {
           "name": "thumbnail_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "output_folder": {
-          "name": "output_folder",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -180,8 +267,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "playlist_id": {
-          "name": "playlist_id",
+        "folder_id": {
+          "name": "folder_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -191,7 +278,7 @@
           "name": "youtube_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "title": {
@@ -258,6 +345,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "sync_frequency": {
+          "name": "sync_frequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "audio_quality": {
+          "name": "audio_quality",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "removed_from_source": {
           "name": "removed_from_source",
           "type": "integer",
@@ -282,10 +383,10 @@
         }
       },
       "indexes": {
-        "tracks_playlist_id_idx": {
-          "name": "tracks_playlist_id_idx",
+        "tracks_folder_id_idx": {
+          "name": "tracks_folder_id_idx",
           "columns": [
-            "playlist_id"
+            "folder_id"
           ],
           "isUnique": false
         },
@@ -296,22 +397,22 @@
           ],
           "isUnique": false
         },
-        "tracks_playlist_id_youtube_id_unique": {
-          "name": "tracks_playlist_id_youtube_id_unique",
+        "tracks_folder_id_youtube_id_unique": {
+          "name": "tracks_folder_id_youtube_id_unique",
           "columns": [
-            "playlist_id",
+            "folder_id",
             "youtube_id"
           ],
           "isUnique": true
         }
       },
       "foreignKeys": {
-        "tracks_playlist_id_playlists_id_fk": {
-          "name": "tracks_playlist_id_playlists_id_fk",
+        "tracks_folder_id_folders_id_fk": {
+          "name": "tracks_folder_id_folders_id_fk",
           "tableFrom": "tracks",
-          "tableTo": "playlists",
+          "tableTo": "folders",
           "columnsFrom": [
-            "playlist_id"
+            "folder_id"
           ],
           "columnsTo": [
             "id"

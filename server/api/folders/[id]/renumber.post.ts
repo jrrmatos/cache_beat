@@ -1,7 +1,7 @@
 import { existsSync, renameSync } from 'node:fs'
 import { dirname, basename, resolve } from 'node:path'
 import { eq, and } from 'drizzle-orm'
-import { playlists, tracks, folders } from '../../../database/schema'
+import { folders, tracks } from '../../../database/schema'
 import { db } from '../../../database/index'
 
 function stripNumberPrefix(filename: string): string {
@@ -14,25 +14,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'id is required' })
   }
 
-  const playlist = db.select().from(playlists).where(eq(playlists.id, id)).get()
-  if (! playlist) {
-    throw createError({ statusCode: 404, message: 'Playlist not found' })
-  }
-
-  const folder = db.select().from(folders).where(eq(folders.playlistId, id)).get()
+  const folder = db.select().from(folders).where(eq(folders.id, id)).get()
   if (! folder) {
-    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+    throw createError({ statusCode: 404, message: 'Folder not found' })
   }
 
-  const playlistTracks = db.select().from(tracks)
-    .where(and(eq(tracks.folderId, folder.id), eq(tracks.removedFromSource, 0)))
+  const folderTracks = db.select().from(tracks)
+    .where(and(eq(tracks.folderId, id), eq(tracks.removedFromSource, 0)))
     .orderBy(tracks.position)
     .all()
 
   const now = Date.now()
   let renamed = 0
 
-  for (const track of playlistTracks) {
+  for (const track of folderTracks) {
     if (! track.filePath || ! existsSync(track.filePath)) {
       continue
     }

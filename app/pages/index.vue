@@ -19,7 +19,15 @@
 
     <DownloadProgress />
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <p class="text-sm text-zinc-400">
+          Folders
+        </p>
+        <p class="text-2xl font-bold">
+          {{ stats.folders }}
+        </p>
+      </div>
       <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <p class="text-sm text-zinc-400">
           Playlists
@@ -81,26 +89,28 @@ const { running: syncing, check: checkSync } = useSyncStatus()
 
 interface PlaylistWithCount {
   id: string
+  folderId: string | null
   title: string
   thumbnailUrl: string | null
   trackCount: number
   isActive: number
   isCustom: number
   syncFrequency: string
-  outputFolder: string | null
   lastSyncedAt: number | null
 }
 
 const recentPlaylists = ref<PlaylistWithCount[]>([])
-const stats = ref({ playlists: 0, totalTracks: 0, downloaded: 0 })
+const stats = ref({ folders: 0, playlists: 0, totalTracks: 0, downloaded: 0 })
 
 async function loadData() {
   try {
     const playlistData = await get<PlaylistWithCount[]>('/api/playlists')
     recentPlaylists.value = playlistData
 
+    const folderTree = await get<unknown[]>('/api/folders/tree')
     const allTracks = await get<{ status: string }[]>('/api/tracks')
     stats.value = {
+      folders: countFolders(folderTree),
       playlists: playlistData.length,
       totalTracks: allTracks.length,
       downloaded: allTracks.filter(track => track.status === 'completed').length,
@@ -109,6 +119,18 @@ async function loadData() {
   catch {
     // api may not be ready yet
   }
+}
+
+function countFolders(nodes: unknown[]): number {
+  let count = 0
+  for (const node of nodes) {
+    count ++
+    const children = (node as { children?: unknown[] }).children
+    if (children) {
+      count += countFolders(children)
+    }
+  }
+  return count
 }
 
 async function triggerSync() {
