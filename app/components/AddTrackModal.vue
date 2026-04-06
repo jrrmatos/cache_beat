@@ -1,6 +1,6 @@
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     @click.self="$emit('close')"
   >
     <div class="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6">

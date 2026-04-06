@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-zinc-800/50"
+    class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-zinc-800/50 sm:gap-3 sm:px-3"
     :class="{ 'cursor-grab active:cursor-grabbing': draggable }"
     :draggable="draggable"
     @dragstart="$emit('dragstart', $event, track.id)"
@@ -9,51 +9,53 @@
   >
     <i
       v-if="draggable"
-      class="pi pi-bars w-4 text-xs text-zinc-600"
+      class="pi pi-bars w-4 shrink-0 text-xs text-zinc-600"
     />
-    <span class="w-8 text-right text-sm text-zinc-500">
+    <span class="w-6 shrink-0 text-right text-xs text-zinc-500 sm:w-8 sm:text-sm">
       {{ String(track.position + 1).padStart(2, '0') }}
     </span>
     <img
       v-if="track.thumbnailUrl"
       :src="track.thumbnailUrl"
       :alt="track.title"
-      class="h-10 w-10 rounded object-cover"
+      class="h-8 w-8 shrink-0 rounded object-cover sm:h-10 sm:w-10"
     >
-    <div
-      v-else
-      class="flex h-10 w-10 items-center justify-center rounded bg-zinc-800"
-    >
-      <i class="pi pi-music text-xs text-zinc-500" />
-    </div>
     <div class="min-w-0 flex-1">
       <p class="truncate text-sm font-medium">
         {{ track.title }}
       </p>
-      <p
-        v-if="track.artist"
-        class="truncate text-xs text-zinc-400"
-      >
-        {{ track.artist }}
-      </p>
+      <div class="flex items-center gap-1.5">
+        <p
+          v-if="track.artist"
+          class="truncate text-xs text-zinc-400"
+        >
+          {{ track.artist }}
+        </p>
+        <span
+          class="inline-block shrink-0 rounded px-1.5 py-0.5 text-xs sm:hidden"
+          :class="statusClass"
+        >
+          {{ track.status }}
+        </span>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex shrink-0 items-center gap-1 sm:gap-2">
       <span
         v-if="track.overrideUrl"
-        class="rounded bg-purple-900/50 px-2 py-0.5 text-xs text-purple-300"
+        class="hidden rounded bg-purple-900/50 px-2 py-0.5 text-xs text-purple-300 sm:inline"
         :title="`Override: ${track.overrideUrl}`"
       >
         override
       </span>
       <span
         v-if="track.removedFromSource"
-        class="rounded bg-amber-900/50 px-2 py-0.5 text-xs text-amber-300"
+        class="hidden rounded bg-amber-900/50 px-2 py-0.5 text-xs text-amber-300 sm:inline"
         title="Removed from YouTube playlist"
       >
         removed
       </span>
       <span
-        class="rounded px-2 py-0.5 text-xs"
+        class="hidden rounded px-2 py-0.5 text-xs sm:inline"
         :class="statusClass"
         :title="track.errorMessage ?? undefined"
       >
@@ -61,7 +63,7 @@
       </span>
       <span
         v-if="track.status === 'failed' && track.errorMessage"
-        class="max-w-xs truncate text-xs text-red-400"
+        class="hidden max-w-xs truncate text-xs text-red-400 sm:inline"
         :title="track.errorMessage"
       >
         {{ track.errorMessage }}

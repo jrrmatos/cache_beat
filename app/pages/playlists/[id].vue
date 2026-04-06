@@ -3,7 +3,7 @@
     v-if="playlist"
     class="space-y-6"
   >
-    <div class="flex items-center justify-between">
+    <div class="space-y-3">
       <div class="flex items-center gap-4">
         <button
           class="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
@@ -11,14 +11,14 @@
         >
           <i class="pi pi-arrow-left" />
         </button>
-        <div>
+        <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
-            <h1 class="text-2xl font-bold">
+            <h1 class="truncate text-xl font-bold sm:text-2xl">
               {{ playlist.title }}
             </h1>
             <span
               v-if="playlist.isCustom"
-              class="rounded bg-violet-900/50 px-2 py-0.5 text-xs text-violet-300"
+              class="shrink-0 rounded bg-violet-900/50 px-2 py-0.5 text-xs text-violet-300"
             >
               Custom
             </span>
@@ -28,32 +28,32 @@
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <button
-          class="flex items-center gap-2 rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-900/30"
+          class="flex items-center gap-2 rounded-lg border border-red-900 px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-900/30"
           @click="confirmDelete"
         >
           <i class="pi pi-trash" />
-          Delete
+          <span class="hidden sm:inline">Delete</span>
         </button>
         <button
           v-if="! playlist.isCustom"
-          class="flex items-center gap-2 rounded-lg border border-amber-800 px-4 py-2 text-sm text-amber-300 transition-colors hover:bg-amber-900/30"
+          class="flex items-center gap-2 rounded-lg border border-amber-800 px-3 py-1.5 text-sm text-amber-300 transition-colors hover:bg-amber-900/30"
           @click="convertToCustom"
         >
           <i class="pi pi-arrow-right-arrow-left" />
-          Convert to Custom
+          <span class="hidden sm:inline">Convert to Custom</span>
         </button>
         <button
-          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800"
           @click="showConfig = ! showConfig"
         >
           <i class="pi pi-cog" />
-          Config
+          <span class="hidden sm:inline">Config</span>
         </button>
         <button
           v-if="! playlist.isCustom"
-          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
           :disabled="syncingMetadata"
           @click="syncMetadata"
         >
@@ -61,26 +61,26 @@
             class="pi pi-sync"
             :class="{ 'animate-spin': syncingMetadata }"
           />
-          Sync Metadata
+          <span class="hidden sm:inline">Sync Metadata</span>
         </button>
         <button
           v-if="playlist.isCustom"
-          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800"
           @click="showAddTrack = true"
         >
           <i class="pi pi-plus" />
-          Add Track
+          <span class="hidden sm:inline">Add Track</span>
         </button>
         <button
-          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
           :disabled="renumbering"
           @click="renumberFiles"
         >
           <i class="pi pi-sort-numeric-up" />
-          Renumber Files
+          <span class="hidden sm:inline">Renumber Files</span>
         </button>
         <button
-          class="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
           :disabled="syncingFiles"
           @click="syncFiles"
         >
@@ -88,7 +88,7 @@
             class="pi pi-download"
             :class="{ 'animate-pulse': syncingFiles }"
           />
-          {{ syncingFiles ? 'Downloading...' : 'Download Files' }}
+          {{ syncingFiles ? 'Downloading...' : 'Download' }}
         </button>
       </div>
     </div>
@@ -153,7 +153,7 @@
 
     <div
       v-if="editingTrack"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       @click.self="cancelEdit"
     >
       <div class="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6">

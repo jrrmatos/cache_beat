@@ -19,7 +19,7 @@
 
     <DownloadProgress />
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <p class="text-sm text-zinc-400">
           Playlists
@@ -50,7 +50,7 @@
       <h2 class="mb-3 text-lg font-semibold">
         Playlists
       </h2>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <PlaylistCard
           v-for="playlist in recentPlaylists"
           :key="playlist.id"

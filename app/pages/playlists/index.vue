@@ -15,7 +15,7 @@
 
     <div
       v-if="playlists.length"
-      class="grid grid-cols-2 gap-3"
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2"
     >
       <PlaylistCard
         v-for="playlist in playlists"
