@@ -17,7 +17,6 @@
     "primeicons": "^7.0.0",
     "vue": "^3.5.31",
     "vue-router": "^5.0.4",
-    "ytdlp-nodejs": "^3.4.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
