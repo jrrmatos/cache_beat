@@ -1,13 +1,15 @@
 CREATE TABLE `playlists` (
 	`id` text PRIMARY KEY NOT NULL,
-	`youtube_id` text NOT NULL,
+	`youtube_id` text,
 	`title` text NOT NULL,
 	`thumbnail_url` text,
-	`output_path` text,
+	`output_folder` text,
 	`sync_frequency` text DEFAULT 'daily' NOT NULL,
 	`audio_quality` text DEFAULT '0' NOT NULL,
 	`is_active` integer DEFAULT 1 NOT NULL,
+	`is_custom` integer DEFAULT 0 NOT NULL,
 	`last_synced_at` integer,
+	`last_downloaded_at` integer,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL
 );
@@ -34,6 +36,7 @@ CREATE TABLE `tracks` (
 	`file_path` text,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`error_message` text,
+	`override_url` text,
 	`removed_from_source` integer DEFAULT 0 NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,

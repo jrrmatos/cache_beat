@@ -1,1 +1,0 @@
-ALTER TABLE `playlists` ADD `last_downloaded_at` integer;

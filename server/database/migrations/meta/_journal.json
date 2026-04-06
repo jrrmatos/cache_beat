@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1775471937949,
-      "tag": "0000_complex_shocker",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1775479805267,
-      "tag": "0001_amazing_smasher",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1775560000000,
-      "tag": "0002_add_override_url",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1775484072885,
-      "tag": "0003_striped_multiple_man",
+      "when": 1775489017626,
+      "tag": "0000_plain_kitty_pryde",
       "breakpoints": true
     }
   ]
