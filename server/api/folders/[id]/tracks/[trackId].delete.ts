@@ -1,5 +1,6 @@
+import { existsSync, unlinkSync } from 'node:fs'
 import { eq, and } from 'drizzle-orm'
-import { playlists, tracks, folders } from '../../../../database/schema'
+import { folders, tracks } from '../../../../database/schema'
 import { db } from '../../../../database/index'
 
 export default defineEventHandler(async (event) => {
@@ -9,30 +10,27 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'id and trackId are required' })
   }
 
-  const playlist = db.select().from(playlists).where(eq(playlists.id, id)).get()
-  if (! playlist) {
-    throw createError({ statusCode: 404, message: 'Playlist not found' })
-  }
-  if (! playlist.isCustom) {
-    throw createError({ statusCode: 400, message: 'Can only delete tracks from custom playlists' })
-  }
-
-  const folder = db.select().from(folders).where(eq(folders.playlistId, id)).get()
+  const folder = db.select().from(folders).where(eq(folders.id, id)).get()
   if (! folder) {
-    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+    throw createError({ statusCode: 404, message: 'Folder not found' })
   }
 
   const track = db.select().from(tracks)
-    .where(and(eq(tracks.id, trackId), eq(tracks.folderId, folder.id)))
+    .where(and(eq(tracks.id, trackId), eq(tracks.folderId, id)))
     .get()
   if (! track) {
     throw createError({ statusCode: 404, message: 'Track not found' })
   }
 
+  if (track.filePath && existsSync(track.filePath)) {
+    unlinkSync(track.filePath)
+  }
+
   db.delete(tracks).where(eq(tracks.id, trackId)).run()
 
+  // Reindex remaining positions
   const remaining = db.select().from(tracks)
-    .where(eq(tracks.folderId, folder.id))
+    .where(eq(tracks.folderId, id))
     .orderBy(tracks.position)
     .all()
   const now = Date.now()

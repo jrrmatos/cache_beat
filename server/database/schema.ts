@@ -13,7 +13,6 @@ export const playlists = sqliteTable('playlists', {
   youtubeId: text('youtube_id').unique(),
   title: text('title').notNull(),
   thumbnailUrl: text('thumbnail_url'),
-  outputFolder: text('output_folder'),
   syncFrequency: text('sync_frequency', { enum: ['hourly', 'daily', 'weekly', 'manual'] }).notNull().default('daily'),
   audioQuality: text('audio_quality').notNull().default('0'),
   isActive: integer('is_active').notNull().default(1),
@@ -24,10 +23,21 @@ export const playlists = sqliteTable('playlists', {
   updatedAt: integer('updated_at').notNull(),
 })
 
+export const folders = sqliteTable('folders', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  parentId: text('parent_id').references((): typeof folders._.columns.id => folders.id, { onDelete: 'cascade' }),
+  playlistId: text('playlist_id').references(() => playlists.id, { onDelete: 'set null' }).unique(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, table => [
+  index('folders_parent_id_idx').on(table.parentId),
+])
+
 export const tracks = sqliteTable('tracks', {
   id: text('id').primaryKey(),
-  playlistId: text('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
-  youtubeId: text('youtube_id').notNull(),
+  folderId: text('folder_id').notNull().references(() => folders.id, { onDelete: 'cascade' }),
+  youtubeId: text('youtube_id'),
   title: text('title').notNull(),
   artist: text('artist'),
   durationSeconds: integer('duration_seconds'),
@@ -37,11 +47,13 @@ export const tracks = sqliteTable('tracks', {
   status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed'] }).notNull().default('pending'),
   errorMessage: text('error_message'),
   overrideUrl: text('override_url'),
+  syncFrequency: text('sync_frequency', { enum: ['hourly', 'daily', 'weekly', 'manual'] }),
+  audioQuality: text('audio_quality'),
   removedFromSource: integer('removed_from_source').notNull().default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 }, table => [
-  unique().on(table.playlistId, table.youtubeId),
-  index('tracks_playlist_id_idx').on(table.playlistId),
+  unique().on(table.folderId, table.youtubeId),
+  index('tracks_folder_id_idx').on(table.folderId),
   index('tracks_status_idx').on(table.status),
 ])

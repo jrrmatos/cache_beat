@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { eq, and, max } from 'drizzle-orm'
-import { playlists, tracks, folders } from '../../../database/schema'
+import { folders, tracks } from '../../../database/schema'
 import { db } from '../../../database/index'
 import { getVideoDetails } from '../../../utils/youtube'
 
@@ -48,17 +48,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'id is required' })
   }
 
-  const playlist = db.select().from(playlists).where(eq(playlists.id, id)).get()
-  if (! playlist) {
-    throw createError({ statusCode: 404, message: 'Playlist not found' })
-  }
-  if (! playlist.isCustom) {
-    throw createError({ statusCode: 400, message: 'Can only add tracks to custom playlists' })
-  }
-
-  const folder = db.select().from(folders).where(eq(folders.playlistId, id)).get()
+  const folder = db.select().from(folders).where(eq(folders.id, id)).get()
   if (! folder) {
-    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+    throw createError({ statusCode: 404, message: 'Folder not found' })
   }
 
   const body = await readValidatedBody(event, bodySchema.parse)
@@ -81,13 +73,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Could not determine video ID' })
   }
 
+  // Check duplicate
   const existing = db.select().from(tracks)
-    .where(and(eq(tracks.folderId, folder.id), eq(tracks.youtubeId, videoId)))
+    .where(and(eq(tracks.folderId, id), eq(tracks.youtubeId, videoId)))
     .get()
   if (existing) {
-    throw createError({ statusCode: 409, message: 'Track already in playlist' })
+    throw createError({ statusCode: 409, message: 'Track already in folder' })
   }
 
+  // Fetch metadata from YouTube if we have a real video ID
   let title = 'Unknown'
   let artist: string | null = null
   let thumbnailUrl: string | null = null
@@ -109,7 +103,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const maxPos = db.select({ value: max(tracks.position) }).from(tracks)
-    .where(eq(tracks.folderId, folder.id))
+    .where(eq(tracks.folderId, id))
     .get()
   const position = (maxPos?.value ?? - 1) + 1
 
@@ -118,7 +112,7 @@ export default defineEventHandler(async (event) => {
 
   db.insert(tracks).values({
     id: trackId,
-    folderId: folder.id,
+    folderId: id,
     youtubeId: videoId,
     title,
     artist,

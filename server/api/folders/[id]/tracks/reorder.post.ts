@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { eq } from 'drizzle-orm'
 import { dirname, basename, resolve } from 'node:path'
 import { existsSync, renameSync } from 'node:fs'
-import { playlists, tracks, folders } from '../../../../database/schema'
+import { folders, tracks } from '../../../../database/schema'
 import { db } from '../../../../database/index'
 
 const bodySchema = z.object({
@@ -19,17 +19,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'id is required' })
   }
 
-  const playlist = db.select().from(playlists).where(eq(playlists.id, id)).get()
-  if (! playlist) {
-    throw createError({ statusCode: 404, message: 'Playlist not found' })
-  }
-  if (! playlist.isCustom) {
-    throw createError({ statusCode: 400, message: 'Can only reorder tracks in custom playlists' })
-  }
-
-  const folder = db.select().from(folders).where(eq(folders.playlistId, id)).get()
+  const folder = db.select().from(folders).where(eq(folders.id, id)).get()
   if (! folder) {
-    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+    throw createError({ statusCode: 404, message: 'Folder not found' })
   }
 
   const { trackIds } = await readValidatedBody(event, bodySchema.parse)
@@ -37,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
   for (let index = 0; index < trackIds.length; index ++) {
     const track = db.select().from(tracks).where(eq(tracks.id, trackIds[index])).get()
-    if (! track || track.folderId !== folder.id) {
+    if (! track || track.folderId !== id) {
       continue
     }
 

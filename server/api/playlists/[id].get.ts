@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { playlists, tracks } from '../../database/schema'
+import { playlists, tracks, folders } from '../../database/schema'
 import { db } from '../../database/index'
 
 export default defineEventHandler(async (event) => {
@@ -13,10 +13,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Playlist not found' })
   }
 
-  const playlistTracks = db.select().from(tracks)
-    .where(eq(tracks.playlistId, id))
-    .orderBy(tracks.position)
-    .all()
+  const folder = db.select().from(folders).where(eq(folders.playlistId, id)).get()
+  const folderId = folder?.id ?? null
 
-  return { ...playlist, tracks: playlistTracks }
+  const playlistTracks = folderId
+    ? db.select().from(tracks).where(eq(tracks.folderId, folderId)).orderBy(tracks.position).all()
+    : []
+
+  return { ...playlist, folderId, tracks: playlistTracks }
 })

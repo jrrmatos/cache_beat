@@ -4,7 +4,9 @@ import { tracks } from '../../../database/schema'
 import { db } from '../../../database/index'
 
 const bodySchema = z.object({
-  overrideUrl: z.union([z.url(), z.literal('')]).transform(value => value || null),
+  overrideUrl: z.union([z.url(), z.literal('')]).transform(value => value || null).optional(),
+  syncFrequency: z.enum(['hourly', 'daily', 'weekly', 'manual']).nullable().optional(),
+  audioQuality: z.string().nullable().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -18,14 +20,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Track not found' })
   }
 
-  const { overrideUrl } = await readValidatedBody(event, bodySchema.parse)
+  const body = await readValidatedBody(event, bodySchema.parse)
+
+  const updates: Record<string, unknown> = { updatedAt: Date.now() }
+
+  if (body.overrideUrl !== undefined) {
+    updates.overrideUrl = body.overrideUrl
+    if (body.overrideUrl) {
+      updates.status = 'pending'
+    }
+  }
+  if (body.syncFrequency !== undefined) {
+    updates.syncFrequency = body.syncFrequency
+  }
+  if (body.audioQuality !== undefined) {
+    updates.audioQuality = body.audioQuality
+  }
 
   db.update(tracks)
-    .set({
-      overrideUrl,
-      status: overrideUrl ? 'pending' : existing.status,
-      updatedAt: Date.now(),
-    })
+    .set(updates)
     .where(eq(tracks.id, id))
     .run()
 

@@ -1,15 +1,12 @@
-import { renameSync, existsSync, readdirSync } from 'node:fs'
+import { renameSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, basename, resolve } from 'node:path'
-import { eq, and } from 'drizzle-orm'
-import { playlists, tracks } from '../database/schema'
+import { eq, and, isNull } from 'drizzle-orm'
+import { playlists, tracks, folders } from '../database/schema'
 import { db } from '../database/index'
 import { getAllPlaylistItems } from './youtube'
 import { downloadTrack } from './downloader'
+import { resolveFolderPath, getFolderPlaylist, getEffectiveAudioQuality } from './folders'
 import { getSetting } from './settings'
-
-function sanitizePathSegment(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim()
-}
 
 function sanitizeFilename(name: string): string {
   return name
@@ -54,6 +51,10 @@ export function isSyncRunning(): boolean {
   return metadataSyncRunning || fileSyncRunning
 }
 
+function findFolderForPlaylist(playlistId: string) {
+  return db.select().from(folders).where(eq(folders.playlistId, playlistId)).get()
+}
+
 // --- Metadata Sync ---
 
 export async function syncPlaylistMetadata(playlistId: string): Promise<{ added: number, removed: number }> {
@@ -65,9 +66,22 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
     return { added: 0, removed: 0 }
   }
 
+  const folder = findFolderForPlaylist(playlistId)
+  if (! folder) {
+    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+  }
+
   const youtubeItems = await getAllPlaylistItems(playlist.youtubeId)
-  const existingTracks = db.select().from(tracks).where(eq(tracks.playlistId, playlistId)).all()
-  const existingByYoutubeId = new Map(existingTracks.map(track => [track.youtubeId, track]))
+  const existingTracks = db.select().from(tracks).where(eq(tracks.folderId, folder.id)).all()
+  const existingByYoutubeId = new Map(
+    existingTracks.filter(track => track.youtubeId).map(track => [track.youtubeId, track]),
+  )
+  // Build title map for scanned tracks (youtubeId is null) to match against YouTube items
+  const scannedByTitle = new Map(
+    existingTracks
+      .filter(track => ! track.youtubeId)
+      .map(track => [sanitizeFilename(track.title).toLowerCase(), track]),
+  )
   const now = Date.now()
 
   let added = 0
@@ -113,25 +127,47 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
       }
     }
     else {
-      db.insert(tracks).values({
-        id: crypto.randomUUID(),
-        playlistId,
-        youtubeId: videoId,
-        title: item.snippet?.title ?? 'Unknown',
-        artist: item.snippet?.videoOwnerChannelTitle ?? null,
-        position: index,
-        thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
-        status: 'pending',
-        removedFromSource: 0,
-        createdAt: now,
-        updatedAt: now,
-      }).run()
+      const ytTitle = item.snippet?.title ?? 'Unknown'
+      const scannedMatch = scannedByTitle.get(sanitizeFilename(ytTitle).toLowerCase())
+
+      if (scannedMatch) {
+        // Upgrade scanned track with YouTube metadata
+        db.update(tracks)
+          .set({
+            youtubeId: videoId,
+            title: ytTitle,
+            artist: item.snippet?.videoOwnerChannelTitle ?? scannedMatch.artist,
+            thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
+            position: index,
+            status: scannedMatch.filePath && existsSync(scannedMatch.filePath) ? 'completed' : 'pending',
+            updatedAt: now,
+          })
+          .where(eq(tracks.id, scannedMatch.id))
+          .run()
+        scannedByTitle.delete(sanitizeFilename(ytTitle).toLowerCase())
+      }
+      else {
+        db.insert(tracks).values({
+          id: crypto.randomUUID(),
+          folderId: folder.id,
+          youtubeId: videoId,
+          title: ytTitle,
+          artist: item.snippet?.videoOwnerChannelTitle ?? null,
+          position: index,
+          thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? null,
+          status: 'pending',
+          removedFromSource: 0,
+          createdAt: now,
+          updatedAt: now,
+        }).run()
+      }
       added ++
     }
   }
 
+  // Only mark youtube-sourced tracks as removed (skip file-scanned tracks with null youtubeId)
   for (const existing of existingTracks) {
-    if (! youtubeVideoIds.has(existing.youtubeId) && ! existing.removedFromSource) {
+    if (existing.youtubeId && ! youtubeVideoIds.has(existing.youtubeId) && ! existing.removedFromSource) {
       db.update(tracks)
         .set({ removedFromSource: 1, updatedAt: now })
         .where(eq(tracks.id, existing.id))
@@ -150,11 +186,6 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
 
 // --- File Sync ---
 
-function resolveOutputDir(playlist: { outputFolder: string | null, title: string }, defaultOutputPath: string): string {
-  const folder = playlist.outputFolder || sanitizePathSegment(playlist.title)
-  return `${defaultOutputPath}/${folder}`
-}
-
 export async function syncPlaylistFiles(
   playlistId: string,
   force = false,
@@ -164,12 +195,16 @@ export async function syncPlaylistFiles(
     throw createError({ statusCode: 404, message: 'Playlist not found' })
   }
 
-  const defaultOutputPath = await getSetting('default_output_path') || './downloads'
-  const outputDir = resolveOutputDir(playlist, defaultOutputPath)
+  const folder = findFolderForPlaylist(playlistId)
+  if (! folder) {
+    throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
+  }
+
+  const outputDir = await resolveFolderPath(folder.id)
 
   const playlistTracks = db.select().from(tracks)
     .where(and(
-      eq(tracks.playlistId, playlistId),
+      eq(tracks.folderId, folder.id),
       eq(tracks.removedFromSource, 0),
     ))
     .orderBy(tracks.position)
@@ -181,6 +216,13 @@ export async function syncPlaylistFiles(
   const now = Date.now()
 
   for (const track of playlistTracks) {
+    if (! track.youtubeId && ! track.overrideUrl) {
+      if (track.status === 'completed') {
+        matched ++
+      }
+      continue
+    }
+
     const sanitizedTitle = sanitizeFilename(track.title)
 
     if (! force) {
@@ -207,14 +249,16 @@ export async function syncPlaylistFiles(
       .where(eq(tracks.id, track.id))
       .run()
 
+    const quality = getEffectiveAudioQuality(track, playlist)
+
     try {
       const filePath = await downloadTrack(
-        track.youtubeId,
+        track.youtubeId ?? '',
         outputDir,
         track.position,
         track.title,
         track.id,
-        playlist.audioQuality,
+        quality,
         track.overrideUrl,
       )
       db.update(tracks)
@@ -242,19 +286,108 @@ export async function syncPlaylistFiles(
   return { downloaded, failed, matched }
 }
 
+export async function syncFolderFiles(
+  folderId: string,
+  force = false,
+): Promise<{ downloaded: number, failed: number, matched: number }> {
+  const folder = db.select().from(folders).where(eq(folders.id, folderId)).get()
+  if (! folder) {
+    throw createError({ statusCode: 404, message: 'Folder not found' })
+  }
+
+  const playlist = folder.playlistId
+    ? db.select().from(playlists).where(eq(playlists.id, folder.playlistId)).get() ?? null
+    : null
+
+  const outputDir = await resolveFolderPath(folderId)
+
+  const folderTracks = db.select().from(tracks)
+    .where(and(
+      eq(tracks.folderId, folderId),
+      eq(tracks.removedFromSource, 0),
+    ))
+    .orderBy(tracks.position)
+    .all()
+
+  let downloaded = 0
+  let failed = 0
+  let matched = 0
+  const now = Date.now()
+
+  for (const track of folderTracks) {
+    if (! track.youtubeId && ! track.overrideUrl) {
+      if (track.status === 'completed') {
+        matched ++
+      }
+      continue
+    }
+
+    const sanitizedTitle = sanitizeFilename(track.title)
+
+    if (! force) {
+      const existingFile = findExistingFile(outputDir, sanitizedTitle)
+      if (existingFile) {
+        if (track.status !== 'completed' || track.filePath !== existingFile) {
+          db.update(tracks)
+            .set({ status: 'completed', filePath: existingFile, errorMessage: null, updatedAt: now })
+            .where(eq(tracks.id, track.id))
+            .run()
+        }
+        matched ++
+        continue
+      }
+    }
+
+    if (! force && track.status === 'completed' && track.filePath && existsSync(track.filePath)) {
+      matched ++
+      continue
+    }
+
+    db.update(tracks)
+      .set({ status: 'downloading', updatedAt: now })
+      .where(eq(tracks.id, track.id))
+      .run()
+
+    const quality = getEffectiveAudioQuality(track, playlist)
+
+    try {
+      const filePath = await downloadTrack(
+        track.youtubeId ?? '',
+        outputDir,
+        track.position,
+        track.title,
+        track.id,
+        quality,
+        track.overrideUrl,
+      )
+      db.update(tracks)
+        .set({ status: 'completed', filePath, errorMessage: null, updatedAt: Date.now() })
+        .where(eq(tracks.id, track.id))
+        .run()
+      downloaded ++
+    }
+    catch (error) {
+      console.error(`[download] failed track "${track.title}" (${track.youtubeId}):`, error)
+      const message = error instanceof Error ? error.message : String(error)
+      db.update(tracks)
+        .set({ status: 'failed', errorMessage: message, updatedAt: Date.now() })
+        .where(eq(tracks.id, track.id))
+        .run()
+      failed ++
+    }
+  }
+
+  return { downloaded, failed, matched }
+}
+
 export async function downloadSingleTrack(trackId: string, force = false): Promise<void> {
   const track = db.select().from(tracks).where(eq(tracks.id, trackId)).get()
   if (! track) {
     throw createError({ statusCode: 404, message: 'Track not found' })
   }
 
-  const playlist = db.select().from(playlists).where(eq(playlists.id, track.playlistId)).get()
-  if (! playlist) {
-    throw createError({ statusCode: 404, message: 'Playlist not found' })
-  }
-
-  const defaultOutputPath = await getSetting('default_output_path') || './downloads'
-  const outputDir = resolveOutputDir(playlist, defaultOutputPath)
+  const outputDir = await resolveFolderPath(track.folderId)
+  const playlist = getFolderPlaylist(track.folderId)
 
   if (! force) {
     const sanitizedTitle = sanitizeFilename(track.title)
@@ -274,14 +407,16 @@ export async function downloadSingleTrack(trackId: string, force = false): Promi
     .where(eq(tracks.id, trackId))
     .run()
 
+  const quality = getEffectiveAudioQuality(track, playlist)
+
   try {
     const filePath = await downloadTrack(
-      track.youtubeId,
+      track.youtubeId ?? '',
       outputDir,
       track.position,
       track.title,
       track.id,
-      playlist.audioQuality,
+      quality,
       track.overrideUrl,
     )
     db.update(tracks)
@@ -366,4 +501,145 @@ export async function runFileSync(): Promise<void> {
   finally {
     fileSyncRunning = false
   }
+}
+
+// --- Recursive Folder Sync from Disk ---
+
+function scanFolderForTracks(folderId: string, fsPath: string): number {
+  const files = readdirSync(fsPath).filter(file => file.toLowerCase().endsWith('.mp3'))
+  const existingTracks = db.select().from(tracks).where(eq(tracks.folderId, folderId)).all()
+  const existingFilePaths = new Set(existingTracks.map(track => track.filePath))
+  let maxPosition = existingTracks.reduce((max, track) => Math.max(max, track.position), - 1)
+  const now = Date.now()
+  let added = 0
+
+  for (const file of files) {
+    const fullPath = resolve(fsPath, file)
+    if (existingFilePaths.has(fullPath)) {
+      continue
+    }
+
+    const title = stripNumberPrefix(file.replace(/\.mp3$/i, ''))
+    maxPosition ++
+
+    db.insert(tracks).values({
+      id: crypto.randomUUID(),
+      folderId,
+      youtubeId: null,
+      title,
+      artist: null,
+      durationSeconds: null,
+      position: maxPosition,
+      thumbnailUrl: null,
+      filePath: fullPath,
+      status: 'completed',
+      removedFromSource: 0,
+      createdAt: now,
+      updatedAt: now,
+    }).run()
+    added ++
+  }
+
+  return added
+}
+
+function syncRecursive(
+  fsPath: string,
+  parentId: string | null,
+  visited: Set<string>,
+  stats: { foldersAdded: number, tracksAdded: number },
+) {
+  let entries: string[]
+  try {
+    entries = readdirSync(fsPath)
+  }
+  catch {
+    return
+  }
+
+  const subdirs = entries.filter((entry) => {
+    try {
+      return statSync(resolve(fsPath, entry)).isDirectory()
+    }
+    catch {
+      return false
+    }
+  })
+
+  for (const dirName of subdirs) {
+    const condition = parentId
+      ? and(eq(folders.name, dirName), eq(folders.parentId, parentId))
+      : and(eq(folders.name, dirName), isNull(folders.parentId))
+
+    let folder = db.select().from(folders).where(condition).get()
+    const now = Date.now()
+
+    if (! folder) {
+      const id = crypto.randomUUID()
+      db.insert(folders).values({
+        id,
+        name: dirName,
+        parentId,
+        createdAt: now,
+        updatedAt: now,
+      }).run()
+      folder = { id, name: dirName, parentId, playlistId: null, createdAt: now, updatedAt: now }
+      stats.foldersAdded ++
+    }
+
+    visited.add(folder.id)
+    stats.tracksAdded += scanFolderForTracks(folder.id, resolve(fsPath, dirName))
+    syncRecursive(resolve(fsPath, dirName), folder.id, visited, stats)
+  }
+}
+
+export async function syncFoldersFromDisk(): Promise<{ foldersAdded: number, tracksAdded: number, foldersRemoved: number }> {
+  const defaultPath = await getSetting('default_output_path')
+  if (! defaultPath || ! existsSync(defaultPath)) {
+    return { foldersAdded: 0, tracksAdded: 0, foldersRemoved: 0 }
+  }
+
+  const visited = new Set<string>()
+  const stats = { foldersAdded: 0, tracksAdded: 0 }
+
+  // Scan root-level .mp3 files into a folder named after the root dir
+  const rootMp3s = readdirSync(defaultPath).filter(file => file.toLowerCase().endsWith('.mp3'))
+  if (rootMp3s.length > 0) {
+    const rootName = basename(defaultPath)
+    const rootCondition = and(eq(folders.name, rootName), isNull(folders.parentId))
+    let rootFolder = db.select().from(folders).where(rootCondition).get()
+    const now = Date.now()
+
+    if (! rootFolder) {
+      const id = crypto.randomUUID()
+      db.insert(folders).values({
+        id,
+        name: rootName,
+        parentId: null,
+        createdAt: now,
+        updatedAt: now,
+      }).run()
+      rootFolder = { id, name: rootName, parentId: null, playlistId: null, createdAt: now, updatedAt: now }
+      stats.foldersAdded ++
+    }
+
+    visited.add(rootFolder.id)
+    stats.tracksAdded += scanFolderForTracks(rootFolder.id, defaultPath)
+  }
+
+  // Recursively sync subdirectories
+  syncRecursive(defaultPath, null, visited, stats)
+
+  // Cleanup: remove DB folders not found on disk, unless they have a playlist
+  const allFolders = db.select({ id: folders.id, playlistId: folders.playlistId }).from(folders).all()
+  let foldersRemoved = 0
+
+  for (const folder of allFolders) {
+    if (! visited.has(folder.id) && ! folder.playlistId) {
+      db.delete(folders).where(eq(folders.id, folder.id)).run()
+      foldersRemoved ++
+    }
+  }
+
+  return { foldersAdded: stats.foldersAdded, tracksAdded: stats.tracksAdded, foldersRemoved }
 }

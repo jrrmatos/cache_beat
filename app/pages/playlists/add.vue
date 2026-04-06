@@ -143,14 +143,12 @@ const youtubePlaylists = ref<YoutubePlaylist[]>([])
 const addedIds = ref(new Set<string>())
 const addingPlaylist = ref<YoutubePlaylist | null>(null)
 const configForm = ref({
-  outputFolder: null as string | null,
   syncFrequency: 'daily',
   audioQuality: '0',
 })
 
 const customTitle = ref('')
 const customConfigForm = ref({
-  outputFolder: null as string | null,
   syncFrequency: 'manual',
   audioQuality: '0',
 })
@@ -160,12 +158,16 @@ async function createCustom() {
     return
   }
   try {
-    const data = await post<{ id: string }>('/api/playlists/custom', {
+    const data = await post<{ folderId: string | null }>('/api/playlists/custom', {
       title: customTitle.value.trim(),
-      outputFolder: customConfigForm.value.outputFolder,
       audioQuality: customConfigForm.value.audioQuality,
     })
-    router.push(`/playlists/${data.id}`)
+    if (data.folderId) {
+      router.push(`/folders/${data.folderId}`)
+    }
+    else {
+      router.push('/playlists')
+    }
   }
   catch (error) {
     console.error('Failed to create custom playlist:', error)
@@ -211,7 +213,6 @@ async function loadPlaylists() {
 function startAdd(playlist: YoutubePlaylist) {
   addingPlaylist.value = playlist
   configForm.value = {
-    outputFolder: null,
     syncFrequency: 'daily',
     audioQuality: '0',
   }
@@ -222,7 +223,7 @@ async function confirmAdd() {
     return
   }
   try {
-    await post('/api/playlists', {
+    const data = await post<{ folderId: string | null }>('/api/playlists', {
       youtubeId: addingPlaylist.value.youtubeId,
       title: addingPlaylist.value.title,
       thumbnailUrl: addingPlaylist.value.thumbnail,
@@ -230,6 +231,9 @@ async function confirmAdd() {
     })
     addedIds.value.add(addingPlaylist.value.youtubeId)
     addingPlaylist.value = null
+    if (data.folderId) {
+      router.push(`/folders/${data.folderId}`)
+    }
   }
   catch (error) {
     console.error('Failed to add playlist:', error)

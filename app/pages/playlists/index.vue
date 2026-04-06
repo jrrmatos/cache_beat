@@ -39,13 +39,13 @@ const { get } = useApi()
 
 interface PlaylistWithCount {
   id: string
+  folderId: string | null
   title: string
   thumbnailUrl: string | null
   trackCount: number
   isActive: number
   isCustom: number
   syncFrequency: string
-  outputFolder: string | null
   lastSyncedAt: number | null
 }
 
