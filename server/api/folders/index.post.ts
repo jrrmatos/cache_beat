@@ -10,7 +10,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const { name } = await readValidatedBody(event, bodySchema.parse)
 
-  if (/[<>:"/\\|?*]/.test(name) || name.includes('..')) {
+  if (/[<>:"\\|?*]/.test(name) || name.includes('..')) {
     throw createError({ statusCode: 400, message: 'Invalid folder name' })
   }
 

@@ -81,7 +81,6 @@
           class="group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-zinc-800"
           :class="isSelected(folder) ? 'text-emerald-400' : 'text-zinc-300'"
           @click="onFolderClick(folder)"
-          @dblclick="navigateInto(folder)"
         >
           <i class="pi pi-folder text-xs text-zinc-500" />
           <span class="flex-1 truncate">{{ folder }}</span>
@@ -210,7 +209,19 @@ function goUp() {
   }
 }
 
+let lastClickedFolder = ''
+let lastClickTime = 0
+
 function onFolderClick(folder: string) {
+  const now = Date.now()
+  if (folder === lastClickedFolder && now - lastClickTime < 400) {
+    lastClickedFolder = ''
+    lastClickTime = 0
+    navigateInto(folder)
+    return
+  }
+  lastClickedFolder = folder
+  lastClickTime = now
   const fullPath = currentPath.value ? `${currentPath.value}/${folder}` : folder
   emit('update:modelValue', fullPath)
 }
