@@ -7,6 +7,10 @@ import { getAllPlaylistItems } from './youtube'
 import { downloadTrack } from './downloader'
 import { getSetting } from './settings'
 
+function sanitizePathSegment(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 interface SyncResult {
   added: number
   removed: number
@@ -122,8 +126,8 @@ export async function downloadPendingTracks(playlistId: string): Promise<{ downl
     throw createError({ statusCode: 404, message: 'Playlist not found' })
   }
 
-  const defaultOutputPath = await getSetting('default_output_path')
-  const outputDir = playlist.outputPath || defaultOutputPath || './downloads'
+  const defaultOutputPath = await getSetting('default_output_path') || './downloads'
+  const outputDir = playlist.outputPath || `${defaultOutputPath}/${sanitizePathSegment(playlist.title)}`
 
   const pendingTracks = db.select().from(tracks)
     .where(and(eq(tracks.playlistId, playlistId), eq(tracks.status, 'pending')))

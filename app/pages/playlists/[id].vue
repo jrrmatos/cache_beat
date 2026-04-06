@@ -22,6 +22,13 @@
       </div>
       <div class="flex items-center gap-2">
         <button
+          class="flex items-center gap-2 rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-900/30"
+          @click="confirmDelete"
+        >
+          <i class="pi pi-trash" />
+          Delete
+        </button>
+        <button
           class="flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800"
           @click="showConfig = ! showConfig"
         >
@@ -96,7 +103,8 @@
 
 <script setup lang="ts">
 const route = useRoute()
-const { get, post, put } = useApi()
+const router = useRouter()
+const { get, post, put, del } = useApi()
 
 interface Track {
   id: string
@@ -160,6 +168,14 @@ async function saveConfig() {
   })
   await loadPlaylist()
   showConfig.value = false
+}
+
+async function confirmDelete() {
+  if (! confirm('Delete this playlist? Downloaded files will be kept.')) {
+    return
+  }
+  await del(`/api/playlists/${route.params.id}`)
+  router.push('/playlists')
 }
 
 async function retryTrack(trackId: string) {
