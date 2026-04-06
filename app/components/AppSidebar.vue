@@ -67,7 +67,7 @@
         </button>
       </div>
 
-      <div class="max-h-[calc(100vh-320px)] overflow-y-auto">
+      <div class="max-h-[calc(100vh-370px)] overflow-y-auto">
         <FolderTree
           v-if="folderTree.length"
           :folders="folderTree"
@@ -89,7 +89,7 @@
     <div class="mt-auto border-t border-zinc-800 px-4 py-3">
       <SyncStatusBadge />
       <p class="mt-2 text-xs text-zinc-600">
-        v0.2.0
+        v0.2.1
       </p>
     </div>
   </aside>

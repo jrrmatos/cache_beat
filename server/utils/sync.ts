@@ -522,15 +522,16 @@ function scanFolderForTracks(folderId: string, fsPath: string): number {
     const title = stripNumberPrefix(file.replace(/\.mp3$/i, ''))
     maxPosition ++
 
+    const trackId = crypto.randomUUID()
     db.insert(tracks).values({
-      id: crypto.randomUUID(),
+      id: trackId,
       folderId,
       youtubeId: null,
       title,
       artist: null,
       durationSeconds: null,
       position: maxPosition,
-      thumbnailUrl: null,
+      thumbnailUrl: `/api/tracks/${trackId}/thumbnail`,
       filePath: fullPath,
       status: 'completed',
       removedFromSource: 0,
