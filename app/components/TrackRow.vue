@@ -37,8 +37,16 @@
       <span
         class="rounded px-2 py-0.5 text-xs"
         :class="statusClass"
+        :title="track.errorMessage ?? undefined"
       >
         {{ track.status }}
+      </span>
+      <span
+        v-if="track.status === 'failed' && track.errorMessage"
+        class="max-w-xs truncate text-xs text-red-400"
+        :title="track.errorMessage"
+      >
+        {{ track.errorMessage }}
       </span>
       <button
         v-if="track.status === 'failed'"
@@ -61,6 +69,7 @@ const props = defineProps<{
     artist: string | null
     thumbnailUrl: string | null
     status: string
+    errorMessage: string | null
     removedFromSource: number
   }
 }>()

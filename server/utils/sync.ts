@@ -155,7 +155,8 @@ export async function downloadPendingTracks(playlistId: string): Promise<{ downl
       downloaded ++
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`[download] failed track "${track.title}" (${track.youtubeId}):`, error)
+      const message = error instanceof Error ? error.message : String(error)
       db.update(tracks)
         .set({ status: 'failed', errorMessage: message, updatedAt: Date.now() })
         .where(eq(tracks.id, track.id))
