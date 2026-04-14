@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { folders } from '../../database/schema'
 import { db } from '../../database/index'
 import { assertUniqueSibling, normalizeFolderName, resolveFolderPath } from '../../utils/folders'
+import { writePlaceholderImage } from '../../utils/folderImage'
 
 const bodySchema = z.object({
   name: z.string().min(1).max(200),
@@ -40,6 +41,13 @@ export default defineEventHandler(async (event) => {
   const folderPath = await resolveFolderPath(id)
   if (! existsSync(folderPath)) {
     mkdirSync(folderPath, { recursive: true })
+  }
+
+  try {
+    await writePlaceholderImage(folderPath)
+  }
+  catch (error) {
+    console.error('Failed to write Folder.jpg placeholder:', error)
   }
 
   return db.select().from(folders).where(eq(folders.id, id)).get()

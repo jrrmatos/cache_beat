@@ -128,6 +128,19 @@
         </button>
 
         <button
+          v-if="folder.imageStatus !== 'placeholder'"
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          :disabled="settingImage"
+          @click="setFolderImage"
+        >
+          <i
+            class="pi pi-image"
+            :class="{ 'animate-spin': settingImage }"
+          />
+          <span>{{ folder.imageStatus === 'custom' ? 'Reset Thumbnail' : 'Set Thumbnail' }}</span>
+        </button>
+
+        <button
           class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800"
           @click="showAddTrack = true"
         >
@@ -638,6 +651,7 @@ interface FolderDetail {
   playlist: Playlist | null
   children: ChildFolder[]
   tracks: Track[]
+  imageStatus: 'missing' | 'placeholder' | 'custom'
 }
 
 const folder = ref<FolderDetail | null>(null)
@@ -645,6 +659,7 @@ const syncingMetadata = ref(false)
 const syncingFiles = ref(false)
 const scanning = ref(false)
 const renumbering = ref(false)
+const settingImage = ref(false)
 const showConfig = ref(false)
 const showAddTrack = ref(false)
 const showNewSubfolder = ref(false)
@@ -814,6 +829,20 @@ async function renumberFiles() {
   }
   finally {
     renumbering.value = false
+  }
+}
+
+async function setFolderImage() {
+  settingImage.value = true
+  try {
+    await post(`/api/folders/${route.params.id}/image`)
+    await loadFolder()
+  }
+  catch (error) {
+    console.error('Set folder image failed:', error)
+  }
+  finally {
+    settingImage.value = false
   }
 }
 

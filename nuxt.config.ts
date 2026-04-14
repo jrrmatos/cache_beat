@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxtjs/tailwindcss'],
@@ -34,6 +36,9 @@ export default defineNuxtConfig({
     scheduledTasks: {
       '*/15 * * * *': ['sync:playlists', 'sync:downloads'],
     },
+    serverAssets: [
+      { baseName: 'public', dir: fileURLToPath(new URL('./public', import.meta.url)) },
+    ],
   },
   vite: {
     server: {

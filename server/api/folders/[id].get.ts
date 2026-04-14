@@ -1,6 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { folders, tracks, playlists } from '../../database/schema'
 import { db } from '../../database/index'
+import { resolveFolderPath } from '../../utils/folders'
+import { getFolderImageStatus } from '../../utils/folderImage'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -27,5 +29,8 @@ export default defineEventHandler(async (event) => {
     ? db.select().from(playlists).where(eq(playlists.id, folder.playlistId)).get() ?? null
     : null
 
-  return { ...folder, children, tracks: folderTracks, playlist }
+  const folderPath = await resolveFolderPath(id)
+  const imageStatus = await getFolderImageStatus(folderPath)
+
+  return { ...folder, children, tracks: folderTracks, playlist, imageStatus }
 })
