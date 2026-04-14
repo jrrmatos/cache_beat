@@ -23,7 +23,7 @@ const PROGRESS_RE = /\[download\]\s+([\d.]+%)\s+of.*?at\s+(\S+)\s+ETA\s+(\S+)/
 
 function parseProgress(line: string): { percentage: string, speed: string, eta: string } | null {
   const match = PROGRESS_RE.exec(line)
-  if (! match) {
+  if (! match || ! match[1] || ! match[2] || ! match[3]) {
     return null
   }
   return { percentage: match[1], speed: match[2], eta: match[3] }

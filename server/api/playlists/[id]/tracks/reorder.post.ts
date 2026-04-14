@@ -36,14 +36,18 @@ export default defineEventHandler(async (event) => {
   const now = Date.now()
 
   for (let index = 0; index < trackIds.length; index ++) {
-    const track = db.select().from(tracks).where(eq(tracks.id, trackIds[index])).get()
+    const trackId = trackIds[index]
+    if (! trackId) {
+      continue
+    }
+    const track = db.select().from(tracks).where(eq(tracks.id, trackId)).get()
     if (! track || track.folderId !== folder.id) {
       continue
     }
 
     db.update(tracks)
       .set({ position: index, updatedAt: now })
-      .where(eq(tracks.id, trackIds[index]))
+      .where(eq(tracks.id, trackId))
       .run()
 
     if (track.filePath && existsSync(track.filePath)) {
@@ -57,7 +61,7 @@ export default defineEventHandler(async (event) => {
         renameSync(track.filePath, newPath)
         db.update(tracks)
           .set({ filePath: newPath, updatedAt: now })
-          .where(eq(tracks.id, trackIds[index]))
+          .where(eq(tracks.id, trackId))
           .run()
       }
     }

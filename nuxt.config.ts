@@ -1,6 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2025-07-15',
   modules: ['@nuxt/eslint', '@nuxtjs/tailwindcss'],
   ssr: false,
   devtools: {
@@ -27,13 +26,11 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  compatibilityDate: '2025-07-15',
   nitro: {
     experimental: {
       tasks: true,
     },
-    devTasks: true,
-    serverAssets: [
-    ],
     scheduledTasks: {
       '*/15 * * * *': ['sync:playlists', 'sync:downloads'],
     },

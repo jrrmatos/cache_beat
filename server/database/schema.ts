@@ -1,3 +1,4 @@
+import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { index, integer, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
 
 export const settings = sqliteTable('settings', {
@@ -26,7 +27,7 @@ export const playlists = sqliteTable('playlists', {
 export const folders = sqliteTable('folders', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  parentId: text('parent_id').references((): typeof folders._.columns.id => folders.id, { onDelete: 'cascade' }),
+  parentId: text('parent_id').references((): AnySQLiteColumn => folders.id, { onDelete: 'cascade' }),
   playlistId: text('playlist_id').references(() => playlists.id, { onDelete: 'set null' }).unique(),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),

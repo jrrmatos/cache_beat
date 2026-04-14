@@ -293,7 +293,7 @@
       </h2>
       <PlaylistConfigForm
         v-model="configForm"
-        :hide-sync="folder.playlist.isCustom"
+        :hide-sync="! ! folder.playlist.isCustom"
       />
       <div class="mt-4 flex items-center gap-3">
         <button
