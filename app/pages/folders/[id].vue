@@ -95,6 +95,14 @@
         </button>
 
         <button
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800"
+          @click="openMove"
+        >
+          <i class="pi pi-arrows-alt" />
+          <span class="hidden sm:inline">Move</span>
+        </button>
+
+        <button
           class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
           :disabled="scanning"
           @click="scanFiles"
@@ -212,6 +220,54 @@
       >
         Cancel
       </button>
+    </div>
+
+    <!-- Move Folder -->
+    <div
+      v-if="showMove"
+      class="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4"
+    >
+      <h2 class="text-sm font-medium text-zinc-300">
+        Move to
+      </h2>
+      <select
+        v-model="moveTargetParentId"
+        class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+        :disabled="moveSaving"
+      >
+        <option :value="null">
+          (Root)
+        </option>
+        <option
+          v-for="option in moveOptions"
+          :key="option.id"
+          :value="option.id"
+        >
+          {{ '\u00A0\u00A0'.repeat(option.depth) + option.name }}
+        </option>
+      </select>
+      <p
+        v-if="moveError"
+        class="text-sm text-red-400"
+      >
+        {{ moveError }}
+      </p>
+      <div class="flex gap-2">
+        <button
+          class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          :disabled="moveSaving"
+          @click="submitMove"
+        >
+          {{ moveSaving ? 'Moving...' : 'Move' }}
+        </button>
+        <button
+          class="rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          :disabled="moveSaving"
+          @click="showMove = false"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
 
     <!-- Config Panel -->
@@ -586,7 +642,36 @@ const renameValue = ref('')
 const renameError = ref('')
 const renameSaving = ref(false)
 const renameInput = ref<HTMLInputElement | null>(null)
-const { load: reloadFolderTree } = useFolderTree()
+const showMove = ref(false)
+const moveTargetParentId = ref<string | null>(null)
+const moveError = ref('')
+const moveSaving = ref(false)
+const { tree: folderTree, load: reloadFolderTree } = useFolderTree()
+
+interface MoveOption {
+  id: string
+  name: string
+  depth: number
+}
+
+function flattenTreeExcluding(nodes: FolderTreeNode[], excludeId: string, depth = 0): MoveOption[] {
+  const result: MoveOption[] = []
+  for (const node of nodes) {
+    if (node.id === excludeId) {
+      continue
+    }
+    result.push({ id: node.id, name: node.name, depth })
+    result.push(...flattenTreeExcluding(node.children, excludeId, depth + 1))
+  }
+  return result
+}
+
+const moveOptions = computed<MoveOption[]>(() => {
+  if (! folder.value) {
+    return []
+  }
+  return flattenTreeExcluding(folderTree.value, folder.value.id)
+})
 const configForm = ref({
   syncFrequency: 'daily',
   audioQuality: '0',
@@ -802,6 +887,45 @@ function startRename() {
 function cancelRename() {
   renaming.value = false
   renameError.value = ''
+}
+
+async function openMove() {
+  if (! folder.value) {
+    return
+  }
+  moveTargetParentId.value = folder.value.parentId
+  moveError.value = ''
+  showMove.value = true
+  if (! folderTree.value.length) {
+    await reloadFolderTree()
+  }
+}
+
+async function submitMove() {
+  if (! folder.value) {
+    return
+  }
+  if (moveTargetParentId.value === folder.value.parentId) {
+    showMove.value = false
+    return
+  }
+  moveSaving.value = true
+  moveError.value = ''
+  try {
+    await put(`/api/folders/${route.params.id}`, { parentId: moveTargetParentId.value })
+    showMove.value = false
+    await loadFolder()
+    await reloadFolderTree()
+  }
+  catch (error) {
+    const message = (error as { data?: { message?: string }, statusMessage?: string }).data?.message
+      ?? (error as { statusMessage?: string }).statusMessage
+      ?? 'Failed to move folder'
+    moveError.value = message
+  }
+  finally {
+    moveSaving.value = false
+  }
 }
 
 async function submitRename() {

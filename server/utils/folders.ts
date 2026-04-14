@@ -24,6 +24,23 @@ export function assertUniqueSibling(name: string, parentId: string | null, exclu
   }
 }
 
+export function getFolderDescendantIds(rootId: string): string[] {
+  const result: string[] = [rootId]
+  const queue = [rootId]
+  while (queue.length) {
+    const parentId = queue.shift()
+    if (! parentId) {
+      break
+    }
+    const children = db.select({ id: folders.id }).from(folders).where(eq(folders.parentId, parentId)).all()
+    for (const child of children) {
+      result.push(child.id)
+      queue.push(child.id)
+    }
+  }
+  return result
+}
+
 export async function resolveFolderPath(folderId: string): Promise<string> {
   const defaultOutputPath = await getSetting('default_output_path') || './downloads'
   const segments: string[] = []
