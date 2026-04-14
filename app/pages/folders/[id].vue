@@ -12,10 +12,20 @@
           <i class="pi pi-arrow-left" />
         </button>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
+          <div
+            v-if="! renaming"
+            class="flex items-center gap-2"
+          >
             <h1 class="truncate text-xl font-bold sm:text-2xl">
               {{ folder.name }}
             </h1>
+            <button
+              class="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              title="Rename folder"
+              @click="startRename"
+            >
+              <i class="pi pi-pencil text-xs" />
+            </button>
             <span
               v-if="folder.playlist"
               class="shrink-0 rounded px-2 py-0.5 text-xs"
@@ -24,7 +34,44 @@
               {{ folder.playlist.isCustom ? 'Custom' : 'YouTube' }}
             </span>
           </div>
-          <p class="text-sm text-zinc-400">
+          <div
+            v-else
+            class="flex items-center gap-2"
+          >
+            <input
+              ref="renameInput"
+              v-model="renameValue"
+              type="text"
+              class="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xl font-bold focus:border-emerald-500 focus:outline-none sm:text-2xl"
+              :disabled="renameSaving"
+              @keydown.enter="submitRename"
+              @keydown.escape="cancelRename"
+            >
+            <button
+              class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              :disabled="renameSaving"
+              @click="submitRename"
+            >
+              Save
+            </button>
+            <button
+              class="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              :disabled="renameSaving"
+              @click="cancelRename"
+            >
+              Cancel
+            </button>
+          </div>
+          <p
+            v-if="renameError"
+            class="mt-1 text-sm text-red-400"
+          >
+            {{ renameError }}
+          </p>
+          <p
+            v-else
+            class="text-sm text-zinc-400"
+          >
             {{ folder.tracks.length }} tracks
           </p>
         </div>
@@ -534,6 +581,12 @@ const showAddTrack = ref(false)
 const showNewSubfolder = ref(false)
 const showAttachPlaylist = ref(false)
 const newSubfolderName = ref('')
+const renaming = ref(false)
+const renameValue = ref('')
+const renameError = ref('')
+const renameSaving = ref(false)
+const renameInput = ref<HTMLInputElement | null>(null)
+const { load: reloadFolderTree } = useFolderTree()
 const configForm = ref({
   syncFrequency: 'daily',
   audioQuality: '0',
@@ -730,6 +783,61 @@ async function createSubfolder() {
   newSubfolderName.value = ''
   showNewSubfolder.value = false
   await loadFolder()
+  await reloadFolderTree()
+}
+
+function startRename() {
+  if (! folder.value) {
+    return
+  }
+  renameValue.value = folder.value.name
+  renameError.value = ''
+  renaming.value = true
+  nextTick(() => {
+    renameInput.value?.focus()
+    renameInput.value?.select()
+  })
+}
+
+function cancelRename() {
+  renaming.value = false
+  renameError.value = ''
+}
+
+async function submitRename() {
+  if (! folder.value) {
+    return
+  }
+  const name = renameValue.value.trim()
+  if (! name) {
+    renameError.value = 'Folder name cannot be empty'
+    return
+  }
+  if (name === folder.value.name) {
+    renaming.value = false
+    return
+  }
+  if (/[<>:"\\|?*/]/.test(name) || name.includes('..')) {
+    renameError.value = 'Invalid characters in folder name'
+    return
+  }
+  renameSaving.value = true
+  renameError.value = ''
+  try {
+    await put(`/api/folders/${route.params.id}`, { name })
+    renaming.value = false
+    await loadFolder()
+    await reloadFolderTree()
+  }
+  catch (error) {
+    const message = (error as { data?: { message?: string }, statusMessage?: string }).data?.message
+      ?? (error as { statusMessage?: string }).statusMessage
+      ?? 'Failed to rename folder'
+    renameError.value = message
+  }
+  finally {
+    renameSaving.value = false
+  }
 }
 
 async function deleteTrack(trackId: string) {

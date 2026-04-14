@@ -89,21 +89,13 @@
     <div class="mt-auto border-t border-zinc-800 px-4 py-3">
       <SyncStatusBadge />
       <p class="mt-2 text-xs text-zinc-600">
-        v0.2.2
+        v0.3.0
       </p>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
-interface FolderNode {
-  id: string
-  name: string
-  playlistId: string | null
-  trackCount: number
-  children: FolderNode[]
-}
-
 defineProps<{
   open: boolean
 }>()
@@ -112,9 +104,10 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { get, post } = useApi()
+const { post } = useApi()
 const route = useRoute()
 const router = useRouter()
+const { tree: folderTree, load: loadFolderTree } = useFolderTree()
 
 const links = [
   { to: '/', label: 'Dashboard', icon: 'pi pi-home' },
@@ -123,7 +116,6 @@ const links = [
   { to: '/settings', label: 'Settings', icon: 'pi pi-cog' },
 ]
 
-const folderTree = ref<FolderNode[]>([])
 const expandedFolders = ref(new Set<string>())
 const showNewFolder = ref(false)
 const syncing = ref(false)
@@ -136,10 +128,6 @@ const activeFolderId = computed(() => {
   }
   return null
 })
-
-async function loadFolderTree() {
-  folderTree.value = await get<FolderNode[]>('/api/folders/tree')
-}
 
 function toggleFolder(id: string) {
   const next = new Set(expandedFolders.value)

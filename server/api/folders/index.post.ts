@@ -3,7 +3,7 @@ import { z } from 'zod/v4'
 import { eq } from 'drizzle-orm'
 import { folders } from '../../database/schema'
 import { db } from '../../database/index'
-import { resolveFolderPath } from '../../utils/folders'
+import { assertUniqueSibling, normalizeFolderName, resolveFolderPath } from '../../utils/folders'
 
 const bodySchema = z.object({
   name: z.string().min(1).max(200),
@@ -11,11 +11,9 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const { name, parentId } = await readValidatedBody(event, bodySchema.parse)
-
-  if (/[<>:"\\|?*]/.test(name) || name.includes('..')) {
-    throw createError({ statusCode: 400, message: 'Invalid folder name' })
-  }
+  const body = await readValidatedBody(event, bodySchema.parse)
+  const name = normalizeFolderName(body.name)
+  const parentId = body.parentId ?? null
 
   if (parentId) {
     const parent = db.select().from(folders).where(eq(folders.id, parentId)).get()
@@ -24,13 +22,15 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  assertUniqueSibling(name, parentId)
+
   const now = Date.now()
   const id = crypto.randomUUID()
 
   db.insert(folders).values({
     id,
     name,
-    parentId: parentId ?? null,
+    parentId,
     playlistId: null,
     createdAt: now,
     updatedAt: now,
