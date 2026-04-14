@@ -12,10 +12,20 @@
           <i class="pi pi-arrow-left" />
         </button>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
+          <div
+            v-if="! renaming"
+            class="flex items-center gap-2"
+          >
             <h1 class="truncate text-xl font-bold sm:text-2xl">
               {{ folder.name }}
             </h1>
+            <button
+              class="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              title="Rename folder"
+              @click="startRename"
+            >
+              <i class="pi pi-pencil text-xs" />
+            </button>
             <span
               v-if="folder.playlist"
               class="shrink-0 rounded px-2 py-0.5 text-xs"
@@ -24,19 +34,69 @@
               {{ folder.playlist.isCustom ? 'Custom' : 'YouTube' }}
             </span>
           </div>
-          <p class="text-sm text-zinc-400">
+          <div
+            v-else
+            class="flex items-center gap-2"
+          >
+            <input
+              ref="renameInput"
+              v-model="renameValue"
+              type="text"
+              class="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xl font-bold focus:border-emerald-500 focus:outline-none sm:text-2xl"
+              :disabled="renameSaving"
+              @keydown.enter="submitRename"
+              @keydown.escape="cancelRename"
+            >
+            <button
+              class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              :disabled="renameSaving"
+              @click="submitRename"
+            >
+              Save
+            </button>
+            <button
+              class="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              :disabled="renameSaving"
+              @click="cancelRename"
+            >
+              Cancel
+            </button>
+          </div>
+          <p
+            v-if="renameError"
+            class="mt-1 text-sm text-red-400"
+          >
+            {{ renameError }}
+          </p>
+          <p
+            v-else
+            class="text-sm text-zinc-400"
+          >
             {{ folder.tracks.length }} tracks
           </p>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <button
+        class="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm transition-colors hover:bg-zinc-800 sm:hidden"
+        @click="showMobileActions = ! showMobileActions"
+      >
+        <i class="pi pi-bars" />
+        <span>Actions</span>
+        <i :class="['pi', showMobileActions ? 'pi-chevron-up' : 'pi-chevron-down']" />
+      </button>
+
+      <div
+        class="gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
+        :class="showMobileActions ? 'mt-2 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-3' : 'hidden'"
+        @click="showMobileActions = false"
+      >
         <button
           class="flex items-center gap-2 rounded-lg border border-red-900 px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-900/30"
           @click="confirmDelete"
         >
           <i class="pi pi-trash" />
-          <span class="hidden sm:inline">Delete</span>
+          <span>Delete</span>
         </button>
 
         <button
@@ -44,7 +104,15 @@
           @click="showNewSubfolder = ! showNewSubfolder"
         >
           <i class="pi pi-folder-plus" />
-          <span class="hidden sm:inline">New Subfolder</span>
+          <span>New Subfolder</span>
+        </button>
+
+        <button
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800"
+          @click="openMove"
+        >
+          <i class="pi pi-arrows-alt" />
+          <span>Move</span>
         </button>
 
         <button
@@ -56,7 +124,7 @@
             class="pi pi-search"
             :class="{ 'animate-spin': scanning }"
           />
-          <span class="hidden sm:inline">Scan Files</span>
+          <span>Scan Files</span>
         </button>
 
         <button
@@ -64,7 +132,7 @@
           @click="showAddTrack = true"
         >
           <i class="pi pi-plus" />
-          <span class="hidden sm:inline">Add Track</span>
+          <span>Add Track</span>
         </button>
 
         <template v-if="folder.playlist">
@@ -78,7 +146,7 @@
               class="pi pi-sync"
               :class="{ 'animate-spin': syncingMetadata }"
             />
-            <span class="hidden sm:inline">Sync Metadata</span>
+            <span>Sync Metadata</span>
           </button>
 
           <button
@@ -87,7 +155,7 @@
             @click="convertToCustom"
           >
             <i class="pi pi-arrow-right-arrow-left" />
-            <span class="hidden sm:inline">Convert to Custom</span>
+            <span>Convert to Custom</span>
           </button>
 
           <button
@@ -95,7 +163,7 @@
             @click="showConfig = ! showConfig"
           >
             <i class="pi pi-cog" />
-            <span class="hidden sm:inline">Config</span>
+            <span>Config</span>
           </button>
 
           <button
@@ -103,7 +171,7 @@
             @click="detachPlaylist"
           >
             <i class="pi pi-link" />
-            <span class="hidden sm:inline">Detach Playlist</span>
+            <span>Detach Playlist</span>
           </button>
         </template>
         <template v-else>
@@ -112,7 +180,7 @@
             @click="showAttachPlaylist = true"
           >
             <i class="pi pi-link" />
-            <span class="hidden sm:inline">Attach Playlist</span>
+            <span>Attach Playlist</span>
           </button>
         </template>
 
@@ -122,7 +190,7 @@
           @click="renumberFiles"
         >
           <i class="pi pi-sort-numeric-up" />
-          <span class="hidden sm:inline">Renumber Files</span>
+          <span>Renumber Files</span>
         </button>
 
         <button
@@ -167,6 +235,54 @@
       </button>
     </div>
 
+    <!-- Move Folder -->
+    <div
+      v-if="showMove"
+      class="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4"
+    >
+      <h2 class="text-sm font-medium text-zinc-300">
+        Move to
+      </h2>
+      <select
+        v-model="moveTargetParentId"
+        class="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+        :disabled="moveSaving"
+      >
+        <option :value="null">
+          (Root)
+        </option>
+        <option
+          v-for="option in moveOptions"
+          :key="option.id"
+          :value="option.id"
+        >
+          {{ '\u00A0\u00A0'.repeat(option.depth) + option.name }}
+        </option>
+      </select>
+      <p
+        v-if="moveError"
+        class="text-sm text-red-400"
+      >
+        {{ moveError }}
+      </p>
+      <div class="flex gap-2">
+        <button
+          class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          :disabled="moveSaving"
+          @click="submitMove"
+        >
+          {{ moveSaving ? 'Moving...' : 'Move' }}
+        </button>
+        <button
+          class="rounded-lg border border-zinc-700 px-4 py-2 text-sm transition-colors hover:bg-zinc-800 disabled:opacity-50"
+          :disabled="moveSaving"
+          @click="showMove = false"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
     <!-- Config Panel -->
     <div
       v-if="showConfig && folder.playlist"
@@ -177,7 +293,7 @@
       </h2>
       <PlaylistConfigForm
         v-model="configForm"
-        :hide-sync="folder.playlist.isCustom"
+        :hide-sync="! ! folder.playlist.isCustom"
       />
       <div class="mt-4 flex items-center gap-3">
         <button
@@ -534,6 +650,42 @@ const showAddTrack = ref(false)
 const showNewSubfolder = ref(false)
 const showAttachPlaylist = ref(false)
 const newSubfolderName = ref('')
+const renaming = ref(false)
+const renameValue = ref('')
+const renameError = ref('')
+const renameSaving = ref(false)
+const renameInput = ref<HTMLInputElement | null>(null)
+const showMove = ref(false)
+const moveTargetParentId = ref<string | null>(null)
+const moveError = ref('')
+const moveSaving = ref(false)
+const showMobileActions = ref(false)
+const { tree: folderTree, load: reloadFolderTree } = useFolderTree()
+
+interface MoveOption {
+  id: string
+  name: string
+  depth: number
+}
+
+function flattenTreeExcluding(nodes: FolderTreeNode[], excludeId: string, depth = 0): MoveOption[] {
+  const result: MoveOption[] = []
+  for (const node of nodes) {
+    if (node.id === excludeId) {
+      continue
+    }
+    result.push({ id: node.id, name: node.name, depth })
+    result.push(...flattenTreeExcluding(node.children, excludeId, depth + 1))
+  }
+  return result
+}
+
+const moveOptions = computed<MoveOption[]>(() => {
+  if (! folder.value) {
+    return []
+  }
+  return flattenTreeExcluding(folderTree.value, folder.value.id)
+})
 const configForm = ref({
   syncFrequency: 'daily',
   audioQuality: '0',
@@ -730,6 +882,100 @@ async function createSubfolder() {
   newSubfolderName.value = ''
   showNewSubfolder.value = false
   await loadFolder()
+  await reloadFolderTree()
+}
+
+function startRename() {
+  if (! folder.value) {
+    return
+  }
+  renameValue.value = folder.value.name
+  renameError.value = ''
+  renaming.value = true
+  nextTick(() => {
+    renameInput.value?.focus()
+    renameInput.value?.select()
+  })
+}
+
+function cancelRename() {
+  renaming.value = false
+  renameError.value = ''
+}
+
+async function openMove() {
+  if (! folder.value) {
+    return
+  }
+  moveTargetParentId.value = folder.value.parentId
+  moveError.value = ''
+  showMove.value = true
+  if (! folderTree.value.length) {
+    await reloadFolderTree()
+  }
+}
+
+async function submitMove() {
+  if (! folder.value) {
+    return
+  }
+  if (moveTargetParentId.value === folder.value.parentId) {
+    showMove.value = false
+    return
+  }
+  moveSaving.value = true
+  moveError.value = ''
+  try {
+    await put(`/api/folders/${route.params.id}`, { parentId: moveTargetParentId.value })
+    showMove.value = false
+    await loadFolder()
+    await reloadFolderTree()
+  }
+  catch (error) {
+    const message = (error as { data?: { message?: string }, statusMessage?: string }).data?.message
+      ?? (error as { statusMessage?: string }).statusMessage
+      ?? 'Failed to move folder'
+    moveError.value = message
+  }
+  finally {
+    moveSaving.value = false
+  }
+}
+
+async function submitRename() {
+  if (! folder.value) {
+    return
+  }
+  const name = renameValue.value.trim()
+  if (! name) {
+    renameError.value = 'Folder name cannot be empty'
+    return
+  }
+  if (name === folder.value.name) {
+    renaming.value = false
+    return
+  }
+  if (/[<>:"\\|?*/]/.test(name) || name.includes('..')) {
+    renameError.value = 'Invalid characters in folder name'
+    return
+  }
+  renameSaving.value = true
+  renameError.value = ''
+  try {
+    await put(`/api/folders/${route.params.id}`, { name })
+    renaming.value = false
+    await loadFolder()
+    await reloadFolderTree()
+  }
+  catch (error) {
+    const message = (error as { data?: { message?: string }, statusMessage?: string }).data?.message
+      ?? (error as { statusMessage?: string }).statusMessage
+      ?? 'Failed to rename folder'
+    renameError.value = message
+  }
+  finally {
+    renameSaving.value = false
+  }
 }
 
 async function deleteTrack(trackId: string) {

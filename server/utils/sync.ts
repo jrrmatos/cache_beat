@@ -38,7 +38,7 @@ function findExistingFile(outputDir: string, sanitizedTitle: string): string | n
   return null
 }
 
-const FREQUENCY_MS: Record<string, number> = {
+const FREQUENCY_MS: Record<'hourly' | 'daily' | 'weekly', number> = {
   hourly: 60 * 60 * 1000,
   daily: 24 * 60 * 60 * 1000,
   weekly: 7 * 24 * 60 * 60 * 1000,
@@ -90,6 +90,9 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
 
   for (let index = 0; index < youtubeItems.length; index ++) {
     const item = youtubeItems[index]
+    if (! item) {
+      continue
+    }
     const videoId = item.contentDetails?.videoId
     if (! videoId) {
       continue

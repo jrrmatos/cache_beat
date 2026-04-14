@@ -1,9 +1,10 @@
-import { existsSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { z } from 'zod/v4'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { folders, tracks } from '../../database/schema'
 import { db } from '../../database/index'
-import { resolveFolderPath } from '../../utils/folders'
+import { assertUniqueSibling, getFolderDescendantIds, normalizeFolderName, resolveFolderPath } from '../../utils/folders'
 
 const bodySchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -22,43 +23,62 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Folder not found' })
   }
 
-  if (body.name && /[<>:"\\|?*]/.test(body.name)) {
-    throw createError({ statusCode: 400, message: 'Invalid folder name' })
+  const newName = body.name ? normalizeFolderName(body.name) : undefined
+  const parentChanged = body.parentId !== undefined && body.parentId !== folder.parentId
+  const nameChanged = newName !== undefined && newName !== folder.name
+
+  if (! nameChanged && ! parentChanged) {
+    return folder
   }
 
-  // Rename filesystem directory if name changed
-  if (body.name && body.name !== folder.name) {
-    const oldPath = await resolveFolderPath(id)
-    // Temporarily update name to compute new path
-    db.update(folders).set({ name: body.name, updatedAt: Date.now() }).where(eq(folders.id, id)).run()
-    const newPath = await resolveFolderPath(id)
+  const targetParentId = parentChanged ? (body.parentId ?? null) : folder.parentId
+  const targetName = newName ?? folder.name
 
-    if (existsSync(oldPath)) {
-      renameSync(oldPath, newPath)
+  if (parentChanged && targetParentId) {
+    const parent = db.select().from(folders).where(eq(folders.id, targetParentId)).get()
+    if (! parent) {
+      throw createError({ statusCode: 404, message: 'Target parent folder not found' })
+    }
+    const descendants = getFolderDescendantIds(id)
+    if (descendants.includes(targetParentId)) {
+      throw createError({ statusCode: 400, message: 'Cannot move folder into itself or a descendant' })
+    }
+  }
 
-      // Update filePaths of all tracks in this folder
-      const folderTracks = db.select().from(tracks).where(eq(tracks.folderId, id)).all()
-      const now = Date.now()
-      for (const track of folderTracks) {
-        if (track.filePath && track.filePath.startsWith(oldPath)) {
-          const newFilePath = track.filePath.replace(oldPath, newPath)
-          db.update(tracks)
-            .set({ filePath: newFilePath, updatedAt: now })
-            .where(eq(tracks.id, track.id))
-            .run()
-        }
+  assertUniqueSibling(targetName, targetParentId, id)
+
+  const oldPath = await resolveFolderPath(id)
+  const affectedFolderIds = getFolderDescendantIds(id)
+
+  const updates: { name?: string, parentId?: string | null, updatedAt: number } = { updatedAt: Date.now() }
+  if (nameChanged) {
+    updates.name = newName
+  }
+  if (parentChanged) {
+    updates.parentId = targetParentId
+  }
+  db.update(folders).set(updates).where(eq(folders.id, id)).run()
+
+  const newPath = await resolveFolderPath(id)
+
+  if (existsSync(oldPath) && oldPath !== newPath) {
+    const parentDir = dirname(newPath)
+    if (! existsSync(parentDir)) {
+      mkdirSync(parentDir, { recursive: true })
+    }
+    renameSync(oldPath, newPath)
+
+    const affectedTracks = db.select().from(tracks).where(inArray(tracks.folderId, affectedFolderIds)).all()
+    const now = Date.now()
+    for (const track of affectedTracks) {
+      if (track.filePath && track.filePath.startsWith(oldPath)) {
+        const newFilePath = newPath + track.filePath.slice(oldPath.length)
+        db.update(tracks)
+          .set({ filePath: newFilePath, updatedAt: now })
+          .where(eq(tracks.id, track.id))
+          .run()
       }
     }
-  }
-  else {
-    const updates: Record<string, unknown> = { updatedAt: Date.now() }
-    if (body.name) {
-      updates.name = body.name
-    }
-    if (body.parentId !== undefined) {
-      updates.parentId = body.parentId
-    }
-    db.update(folders).set(updates).where(eq(folders.id, id)).run()
   }
 
   return db.select().from(folders).where(eq(folders.id, id)).get()

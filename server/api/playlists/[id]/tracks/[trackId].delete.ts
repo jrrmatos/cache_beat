@@ -37,10 +37,14 @@ export default defineEventHandler(async (event) => {
     .all()
   const now = Date.now()
   for (let index = 0; index < remaining.length; index ++) {
-    if (remaining[index].position !== index) {
+    const remainingTrack = remaining[index]
+    if (! remainingTrack) {
+      continue
+    }
+    if (remainingTrack.position !== index) {
       db.update(tracks)
         .set({ position: index, updatedAt: now })
-        .where(eq(tracks.id, remaining[index].id))
+        .where(eq(tracks.id, remainingTrack.id))
         .run()
     }
   }
