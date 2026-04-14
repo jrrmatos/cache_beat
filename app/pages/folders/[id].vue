@@ -77,13 +77,26 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <button
+        class="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm transition-colors hover:bg-zinc-800 sm:hidden"
+        @click="showMobileActions = ! showMobileActions"
+      >
+        <i class="pi pi-bars" />
+        <span>Actions</span>
+        <i :class="['pi', showMobileActions ? 'pi-chevron-up' : 'pi-chevron-down']" />
+      </button>
+
+      <div
+        class="gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
+        :class="showMobileActions ? 'mt-2 flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-3' : 'hidden'"
+        @click="showMobileActions = false"
+      >
         <button
           class="flex items-center gap-2 rounded-lg border border-red-900 px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-900/30"
           @click="confirmDelete"
         >
           <i class="pi pi-trash" />
-          <span class="hidden sm:inline">Delete</span>
+          <span>Delete</span>
         </button>
 
         <button
@@ -91,7 +104,7 @@
           @click="showNewSubfolder = ! showNewSubfolder"
         >
           <i class="pi pi-folder-plus" />
-          <span class="hidden sm:inline">New Subfolder</span>
+          <span>New Subfolder</span>
         </button>
 
         <button
@@ -99,7 +112,7 @@
           @click="openMove"
         >
           <i class="pi pi-arrows-alt" />
-          <span class="hidden sm:inline">Move</span>
+          <span>Move</span>
         </button>
 
         <button
@@ -111,7 +124,7 @@
             class="pi pi-search"
             :class="{ 'animate-spin': scanning }"
           />
-          <span class="hidden sm:inline">Scan Files</span>
+          <span>Scan Files</span>
         </button>
 
         <button
@@ -119,7 +132,7 @@
           @click="showAddTrack = true"
         >
           <i class="pi pi-plus" />
-          <span class="hidden sm:inline">Add Track</span>
+          <span>Add Track</span>
         </button>
 
         <template v-if="folder.playlist">
@@ -133,7 +146,7 @@
               class="pi pi-sync"
               :class="{ 'animate-spin': syncingMetadata }"
             />
-            <span class="hidden sm:inline">Sync Metadata</span>
+            <span>Sync Metadata</span>
           </button>
 
           <button
@@ -142,7 +155,7 @@
             @click="convertToCustom"
           >
             <i class="pi pi-arrow-right-arrow-left" />
-            <span class="hidden sm:inline">Convert to Custom</span>
+            <span>Convert to Custom</span>
           </button>
 
           <button
@@ -150,7 +163,7 @@
             @click="showConfig = ! showConfig"
           >
             <i class="pi pi-cog" />
-            <span class="hidden sm:inline">Config</span>
+            <span>Config</span>
           </button>
 
           <button
@@ -158,7 +171,7 @@
             @click="detachPlaylist"
           >
             <i class="pi pi-link" />
-            <span class="hidden sm:inline">Detach Playlist</span>
+            <span>Detach Playlist</span>
           </button>
         </template>
         <template v-else>
@@ -167,7 +180,7 @@
             @click="showAttachPlaylist = true"
           >
             <i class="pi pi-link" />
-            <span class="hidden sm:inline">Attach Playlist</span>
+            <span>Attach Playlist</span>
           </button>
         </template>
 
@@ -177,7 +190,7 @@
           @click="renumberFiles"
         >
           <i class="pi pi-sort-numeric-up" />
-          <span class="hidden sm:inline">Renumber Files</span>
+          <span>Renumber Files</span>
         </button>
 
         <button
@@ -646,6 +659,7 @@ const showMove = ref(false)
 const moveTargetParentId = ref<string | null>(null)
 const moveError = ref('')
 const moveSaving = ref(false)
+const showMobileActions = ref(false)
 const { tree: folderTree, load: reloadFolderTree } = useFolderTree()
 
 interface MoveOption {
