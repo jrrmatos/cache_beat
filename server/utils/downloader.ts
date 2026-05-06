@@ -29,12 +29,17 @@ function parseProgress(line: string): { percentage: string, speed: string, eta: 
   return { percentage: match[1], speed: match[2], eta: match[3] }
 }
 
+export function positionWidth(total: number): number {
+  return Math.max(2, String(total).length)
+}
+
 export async function downloadTrack(
   videoId: string,
   outputDir: string,
   position: number,
   title: string,
   trackId: string,
+  total: number,
   audioQuality = '0',
   overrideUrl?: string | null,
 ): Promise<string> {
@@ -42,7 +47,7 @@ export async function downloadTrack(
     mkdirSync(outputDir, { recursive: true })
   }
 
-  const paddedPosition = String(position + 1).padStart(2, '0')
+  const paddedPosition = String(position + 1).padStart(positionWidth(total), '0')
   const sanitizedTitle = sanitizeFilename(title)
   const filename = `${paddedPosition} - ${sanitizedTitle}`
   const url = overrideUrl || `https://www.youtube.com/watch?v=${videoId}`

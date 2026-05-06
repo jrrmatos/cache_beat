@@ -5,7 +5,7 @@
       class="drag-handle pi pi-bars w-4 shrink-0 cursor-grab text-xs text-zinc-600 active:cursor-grabbing"
     />
     <span class="w-6 shrink-0 text-right text-xs text-zinc-500 sm:w-8 sm:text-sm">
-      {{ String(track.position + 1).padStart(2, '0') }}
+      {{ String(track.position + 1).padStart(positionWidth, '0') }}
     </span>
     <img
       v-if="track.thumbnailUrl"
@@ -135,9 +135,12 @@ const props = defineProps<{
     removedFromSource: number
     banned: number | null
   }
+  total: number
   deletable?: boolean
   draggable?: boolean
 }>()
+
+const positionWidth = computed(() => Math.max(2, String(props.total).length))
 
 defineEmits<{
   retry: [trackId: string]

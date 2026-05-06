@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const now = Date.now()
   let renamed = 0
+  const width = Math.max(2, String(folderTracks.length).length)
 
   for (const track of folderTracks) {
     if (! track.filePath || ! existsSync(track.filePath)) {
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
 
     const dir = dirname(track.filePath)
     const oldName = basename(track.filePath)
-    const paddedPosition = String(track.position + 1).padStart(2, '0')
+    const paddedPosition = String(track.position + 1).padStart(width, '0')
     const nameWithoutNumber = stripNumberPrefix(oldName)
     const newName = `${paddedPosition} - ${nameWithoutNumber}`
 

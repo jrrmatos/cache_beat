@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const { trackIds } = await readValidatedBody(event, bodySchema.parse)
   const now = Date.now()
+  const width = Math.max(2, String(trackIds.length).length)
 
   for (let index = 0; index < trackIds.length; index ++) {
     const trackId = trackIds[index]
@@ -45,7 +46,7 @@ export default defineEventHandler(async (event) => {
     if (track.filePath && existsSync(track.filePath)) {
       const dir = dirname(track.filePath)
       const oldName = basename(track.filePath)
-      const paddedPosition = String(index + 1).padStart(2, '0')
+      const paddedPosition = String(index + 1).padStart(width, '0')
       const nameWithoutNumber = stripNumberPrefix(oldName)
       const newName = `${paddedPosition} - ${nameWithoutNumber}`
       if (oldName !== newName) {

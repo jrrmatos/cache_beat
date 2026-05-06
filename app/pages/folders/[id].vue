@@ -363,6 +363,7 @@
         <template #item="{ element: track }">
           <TrackRow
             :track="track"
+            :total="folder.tracks.length"
             :deletable="true"
             :draggable="true"
             @retry="retryTrack"

@@ -4,7 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm'
 import { playlists, tracks, folders } from '../database/schema'
 import { db } from '../database/index'
 import { getAllPlaylistItems, getAllLikedVideosAsPlaylistItems, LIKES_PLAYLIST_ID } from './youtube'
-import { downloadTrack } from './downloader'
+import { downloadTrack, positionWidth } from './downloader'
 import { resolveFolderPath, getFolderPlaylist, getEffectiveAudioQuality } from './folders'
 import { getSetting } from './settings'
 
@@ -89,6 +89,7 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
   let added = 0
   let removed = 0
   const youtubeVideoIds = new Set<string>()
+  const width = positionWidth(Math.max(youtubeItems.length, existingTracks.length))
 
   for (let index = 0; index < youtubeItems.length; index ++) {
     const item = youtubeItems[index]
@@ -108,20 +109,19 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
           .set({ position: index, updatedAt: now })
           .where(eq(tracks.id, existing.id))
           .run()
-
-        if (existing.filePath && existsSync(existing.filePath)) {
-          const dir = dirname(existing.filePath)
-          const oldName = basename(existing.filePath)
-          const paddedPosition = String(index + 1).padStart(2, '0')
-          const nameWithoutNumber = stripNumberPrefix(oldName)
-          const newName = `${paddedPosition} - ${nameWithoutNumber}`
-          if (oldName !== newName) {
-            renameSync(existing.filePath, `${dir}/${newName}`)
-            db.update(tracks)
-              .set({ filePath: `${dir}/${newName}`, updatedAt: now })
-              .where(eq(tracks.id, existing.id))
-              .run()
-          }
+      }
+      if (existing.filePath && existsSync(existing.filePath)) {
+        const dir = dirname(existing.filePath)
+        const oldName = basename(existing.filePath)
+        const paddedPosition = String(index + 1).padStart(width, '0')
+        const nameWithoutNumber = stripNumberPrefix(oldName)
+        const newName = `${paddedPosition} - ${nameWithoutNumber}`
+        if (oldName !== newName) {
+          renameSync(existing.filePath, `${dir}/${newName}`)
+          db.update(tracks)
+            .set({ filePath: `${dir}/${newName}`, updatedAt: now })
+            .where(eq(tracks.id, existing.id))
+            .run()
         }
       }
       if (existing.removedFromSource) {
@@ -266,6 +266,7 @@ export async function syncPlaylistFiles(
         track.position,
         track.title,
         track.id,
+        playlistTracks.length,
         quality,
         track.overrideUrl,
       )
@@ -368,6 +369,7 @@ export async function syncFolderFiles(
         track.position,
         track.title,
         track.id,
+        folderTracks.length,
         quality,
         track.overrideUrl,
       )
@@ -402,6 +404,7 @@ export async function downloadSingleTrack(trackId: string, force = false): Promi
 
   const outputDir = await resolveFolderPath(track.folderId)
   const playlist = getFolderPlaylist(track.folderId)
+  const folderTrackCount = db.select().from(tracks).where(eq(tracks.folderId, track.folderId)).all().length
 
   if (! force) {
     const sanitizedTitle = sanitizeFilename(track.title)
@@ -430,6 +433,7 @@ export async function downloadSingleTrack(trackId: string, force = false): Promi
       track.position,
       track.title,
       track.id,
+      folderTrackCount,
       quality,
       track.overrideUrl,
     )
