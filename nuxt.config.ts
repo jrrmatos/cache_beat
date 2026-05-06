@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import pkg from './package.json' with { type: 'json' }
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -25,6 +26,11 @@ export default defineNuxtConfig({
     },
   },
   css: ['primeicons/primeicons.css'],
+  runtimeConfig: {
+    public: {
+      appVersion: pkg.version,
+    },
+  },
   future: {
     compatibilityVersion: 4,
   },

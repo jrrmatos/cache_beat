@@ -89,7 +89,7 @@
     <div class="mt-auto border-t border-zinc-800 px-4 py-3">
       <SyncStatusBadge />
       <p class="mt-2 text-xs text-zinc-600">
-        v0.3.1
+        v{{ appVersion }}
       </p>
     </div>
   </aside>
@@ -108,6 +108,7 @@ const { post } = useApi()
 const route = useRoute()
 const router = useRouter()
 const { tree: folderTree, load: loadFolderTree } = useFolderTree()
+const appVersion = useRuntimeConfig().public.appVersion
 
 const links = [
   { to: '/', label: 'Dashboard', icon: 'pi pi-home' },

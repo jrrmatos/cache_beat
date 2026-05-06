@@ -103,6 +103,32 @@ export async function getAllPlaylistItems(playlistId: string) {
   return items
 }
 
+export const LIKES_PLAYLIST_ID = '__likes__'
+
+export async function getAllLikedVideosAsPlaylistItems(): Promise<youtube_v3.Schema$PlaylistItem[]> {
+  const items: youtube_v3.Schema$PlaylistItem[] = []
+  let pageToken: string | undefined
+
+  do {
+    const response = await getLikedVideos(pageToken)
+    if (response.items) {
+      for (const video of response.items) {
+        items.push({
+          contentDetails: { videoId: video.id ?? '' },
+          snippet: {
+            title: video.snippet?.title,
+            videoOwnerChannelTitle: video.snippet?.channelTitle,
+            thumbnails: video.snippet?.thumbnails,
+          },
+        })
+      }
+    }
+    pageToken = response.nextPageToken ?? undefined
+  } while (pageToken)
+
+  return items
+}
+
 export async function getLikedVideos(pageToken?: string) {
   const auth = await getAuthenticatedClient()
   const yt = youtubeClient(auth)

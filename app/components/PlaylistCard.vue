@@ -13,7 +13,14 @@
       v-else
       class="flex h-20 w-20 items-center justify-center rounded-lg bg-zinc-800"
     >
-      <i class="pi pi-music text-2xl text-zinc-500" />
+      <i
+        v-if="playlist.youtubeId === '__likes__'"
+        class="pi pi-heart text-2xl text-pink-400"
+      />
+      <i
+        v-else
+        class="pi pi-music text-2xl text-zinc-500"
+      />
     </div>
     <div class="flex min-w-0 flex-1 flex-col justify-between">
       <div>
@@ -51,6 +58,7 @@ defineProps<{
     folderId: string | null
     title: string
     thumbnailUrl: string | null
+    youtubeId: string | null
     trackCount: number
     isActive: number
     isCustom: number

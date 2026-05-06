@@ -71,11 +71,20 @@
             :alt="playlist.title"
             class="h-16 w-16 rounded-lg object-cover"
           >
+          <div
+            v-else
+            class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-zinc-800"
+          >
+            <i class="pi pi-heart text-2xl text-pink-400" />
+          </div>
           <div class="min-w-0 flex-1">
             <h3 class="truncate font-medium">
               {{ playlist.title }}
             </h3>
-            <p class="text-sm text-zinc-400">
+            <p
+              v-if="playlist.itemCount !== null"
+              class="text-sm text-zinc-400"
+            >
               {{ playlist.itemCount }} items
             </p>
           </div>
@@ -133,8 +142,18 @@ interface YoutubePlaylist {
   youtubeId: string
   title: string
   thumbnail: string | null
-  itemCount: number
+  itemCount: number | null
   id: string
+}
+
+const LIKES_PLAYLIST_ID = '__likes__'
+
+const likesEntry: YoutubePlaylist = {
+  id: LIKES_PLAYLIST_ID,
+  youtubeId: LIKES_PLAYLIST_ID,
+  title: 'Likes',
+  thumbnail: null,
+  itemCount: null,
 }
 
 const connected = ref(false)
@@ -189,15 +208,17 @@ async function loadPlaylists() {
     return
   }
   loading.value = true
+  youtubePlaylists.value = [likesEntry]
   try {
     const data = await get<{ items?: { id: string, snippet?: { title?: string, thumbnails?: { medium?: { url?: string } } }, contentDetails?: { itemCount?: number } }[] }>('/api/youtube/playlists')
-    youtubePlaylists.value = (data.items ?? []).map(item => ({
+    const fetched = (data.items ?? []).map(item => ({
       id: item.id,
       youtubeId: item.id,
       title: item.snippet?.title ?? 'Unknown',
       thumbnail: item.snippet?.thumbnails?.medium?.url ?? null,
       itemCount: item.contentDetails?.itemCount ?? 0,
     })).sort((left, right) => left.title.localeCompare(right.title))
+    youtubePlaylists.value = [likesEntry, ...fetched]
 
     const existing = await get<{ youtubeId: string | null }[]>('/api/playlists')
     addedIds.value = new Set(existing.map(playlist => playlist.youtubeId).filter(Boolean) as string[])

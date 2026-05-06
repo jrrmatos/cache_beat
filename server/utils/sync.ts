@@ -3,7 +3,7 @@ import { dirname, basename, resolve } from 'node:path'
 import { eq, and, isNull } from 'drizzle-orm'
 import { playlists, tracks, folders } from '../database/schema'
 import { db } from '../database/index'
-import { getAllPlaylistItems } from './youtube'
+import { getAllPlaylistItems, getAllLikedVideosAsPlaylistItems, LIKES_PLAYLIST_ID } from './youtube'
 import { downloadTrack } from './downloader'
 import { resolveFolderPath, getFolderPlaylist, getEffectiveAudioQuality } from './folders'
 import { getSetting } from './settings'
@@ -71,7 +71,9 @@ export async function syncPlaylistMetadata(playlistId: string): Promise<{ added:
     throw createError({ statusCode: 404, message: 'No folder linked to playlist' })
   }
 
-  const youtubeItems = await getAllPlaylistItems(playlist.youtubeId)
+  const youtubeItems = playlist.youtubeId === LIKES_PLAYLIST_ID
+    ? await getAllLikedVideosAsPlaylistItems()
+    : await getAllPlaylistItems(playlist.youtubeId)
   const existingTracks = db.select().from(tracks).where(eq(tracks.folderId, folder.id)).all()
   const existingByYoutubeId = new Map(
     existingTracks.filter(track => track.youtubeId).map(track => [track.youtubeId, track]),

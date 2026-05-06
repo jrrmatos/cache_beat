@@ -551,11 +551,20 @@
                 :alt="ytPlaylist.title"
                 class="h-10 w-14 rounded object-cover"
               >
+              <div
+                v-else
+                class="flex h-10 w-14 shrink-0 items-center justify-center rounded bg-zinc-800"
+              >
+                <i class="pi pi-heart text-pink-400" />
+              </div>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm">
                   {{ ytPlaylist.title }}
                 </p>
-                <p class="text-xs text-zinc-400">
+                <p
+                  v-if="ytPlaylist.itemCount !== null"
+                  class="text-xs text-zinc-400"
+                >
                   {{ ytPlaylist.itemCount }} items
                 </p>
               </div>
@@ -716,7 +725,14 @@ interface YouTubePlaylistItem {
   id: string
   title: string
   thumbnail: string | null
-  itemCount: number
+  itemCount: number | null
+}
+const LIKES_PLAYLIST_ID = '__likes__'
+const likesEntry: YouTubePlaylistItem = {
+  id: LIKES_PLAYLIST_ID,
+  title: 'Likes',
+  thumbnail: null,
+  itemCount: null,
 }
 const youtubePlaylists = ref<YouTubePlaylistItem[]>([])
 const loadingYoutube = ref(false)
@@ -1126,9 +1142,10 @@ watch(attachTab, async (value) => {
 
 async function loadYoutubePlaylists() {
   loadingYoutube.value = true
+  youtubePlaylists.value = [likesEntry]
   try {
     const data = await get<{ items?: { id?: string, snippet?: { title?: string, thumbnails?: { medium?: { url?: string } } }, contentDetails?: { itemCount?: number } }[] }>('/api/youtube/playlists')
-    youtubePlaylists.value = (data.items ?? [])
+    const fetched: YouTubePlaylistItem[] = (data.items ?? [])
       .filter(item => !! item.id)
       .map(item => ({
         id: item.id ?? '',
@@ -1137,6 +1154,7 @@ async function loadYoutubePlaylists() {
         itemCount: item.contentDetails?.itemCount ?? 0,
       }))
       .sort((left, right) => left.title.localeCompare(right.title))
+    youtubePlaylists.value = [likesEntry, ...fetched]
   }
   catch (error) {
     console.error('Failed to load YouTube playlists:', error)
