@@ -221,6 +221,9 @@ export async function syncPlaylistFiles(
   const now = Date.now()
 
   for (const track of playlistTracks) {
+    if (track.banned) {
+      continue
+    }
     if (! track.youtubeId && ! track.overrideUrl) {
       if (track.status === 'completed') {
         matched ++
@@ -320,6 +323,9 @@ export async function syncFolderFiles(
   const now = Date.now()
 
   for (const track of folderTracks) {
+    if (track.banned) {
+      continue
+    }
     if (! track.youtubeId && ! track.overrideUrl) {
       if (track.status === 'completed') {
         matched ++
@@ -389,6 +395,9 @@ export async function downloadSingleTrack(trackId: string, force = false): Promi
   const track = db.select().from(tracks).where(eq(tracks.id, trackId)).get()
   if (! track) {
     throw createError({ statusCode: 404, message: 'Track not found' })
+  }
+  if (track.banned) {
+    throw createError({ statusCode: 400, message: 'Track is banned' })
   }
 
   const outputDir = await resolveFolderPath(track.folderId)

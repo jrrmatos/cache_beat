@@ -51,6 +51,7 @@ export const tracks = sqliteTable('tracks', {
   syncFrequency: text('sync_frequency', { enum: ['hourly', 'daily', 'weekly', 'manual'] }),
   audioQuality: text('audio_quality'),
   removedFromSource: integer('removed_from_source').notNull().default(0),
+  banned: integer('banned'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 }, table => [

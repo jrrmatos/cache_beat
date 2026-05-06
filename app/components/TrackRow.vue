@@ -25,6 +25,7 @@
           {{ track.artist }}
         </p>
         <span
+          v-if="! track.banned"
           class="inline-block shrink-0 rounded px-1.5 py-0.5 text-xs sm:hidden"
           :class="statusClass"
         >
@@ -48,6 +49,14 @@
         removed
       </span>
       <span
+        v-if="track.banned"
+        class="hidden rounded bg-red-900/50 px-2 py-0.5 text-xs text-red-300 sm:inline"
+        title="File downloads disabled"
+      >
+        banned
+      </span>
+      <span
+        v-if="! track.banned"
         class="hidden rounded px-2 py-0.5 text-xs sm:inline"
         :class="statusClass"
         :title="track.errorMessage ?? undefined"
@@ -77,12 +86,28 @@
         <i class="pi pi-pencil text-xs" />
       </button>
       <button
-        v-if="track.status !== 'downloading'"
+        v-if="track.status !== 'downloading' && ! track.banned"
         class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
         :title="track.status === 'completed' ? 'Force re-download' : 'Download now'"
         @click="$emit('download', track.id, track.status === 'completed')"
       >
         <i class="pi pi-download text-xs" />
+      </button>
+      <button
+        v-if="! track.banned"
+        class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-red-400"
+        title="Ban (skip downloads, delete file)"
+        @click="$emit('ban', track.id)"
+      >
+        <i class="pi pi-ban text-xs" />
+      </button>
+      <button
+        v-else
+        class="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-emerald-400"
+        title="Restore (allow downloads)"
+        @click="$emit('unban', track.id)"
+      >
+        <i class="pi pi-replay text-xs" />
       </button>
       <button
         v-if="deletable"
@@ -108,6 +133,7 @@ const props = defineProps<{
     errorMessage: string | null
     overrideUrl: string | null
     removedFromSource: number
+    banned: number | null
   }
   deletable?: boolean
   draggable?: boolean
@@ -118,6 +144,8 @@ defineEmits<{
   download: [trackId: string, force: boolean]
   edit: [trackId: string]
   delete: [trackId: string]
+  ban: [trackId: string]
+  unban: [trackId: string]
 }>()
 
 const statusClass = computed(() => {

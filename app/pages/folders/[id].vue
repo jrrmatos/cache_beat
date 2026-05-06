@@ -369,6 +369,8 @@
             @download="downloadTrack"
             @edit="openEditTrack"
             @delete="deleteTrack"
+            @ban="banTrack"
+            @unban="unbanTrack"
           />
         </template>
       </draggable>
@@ -634,6 +636,7 @@ interface Track {
   errorMessage: string | null
   overrideUrl: string | null
   removedFromSource: number
+  banned: number | null
 }
 
 interface Playlist {
@@ -1028,6 +1031,16 @@ async function deleteTrack(trackId: string) {
     return
   }
   await del(`/api/folders/${route.params.id}/tracks/${trackId}`)
+  await loadFolder()
+}
+
+async function banTrack(trackId: string) {
+  await post(`/api/tracks/${trackId}/ban`)
+  await loadFolder()
+}
+
+async function unbanTrack(trackId: string) {
+  await post(`/api/tracks/${trackId}/unban`)
   await loadFolder()
 }
 
